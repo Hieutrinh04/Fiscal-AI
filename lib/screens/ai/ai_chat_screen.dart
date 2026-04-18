@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // ✅ COPY
+import 'package:flutter/services.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../utils/snackbar.dart';
+
+import '../../providers/ai_provider.dart';
+import '../../models/ai_chat_message.dart';
 
 class AIChatScreen extends StatefulWidget {
   const AIChatScreen({super.key});
@@ -11,7 +18,6 @@ class AIChatScreen extends StatefulWidget {
 
 class _AIChatScreenState extends State<AIChatScreen> {
   final TextEditingController controller = TextEditingController();
-  final List<Map<String, dynamic>> messages = [];
 
   final List<String> suggestions = [
     "Tóm tắt chi tiêu của tôi",
@@ -20,76 +26,50 @@ class _AIChatScreenState extends State<AIChatScreen> {
     "Có nên đầu tư không?",
   ];
 
-  /// ================= AI =================
-  String getAIResponse(String text) {
-    text = text.toLowerCase();
+  @override
+  void initState() {
+    super.initState();
+    _initData();
+  }
 
-    if (text.contains("chi tiêu")) {
-      return "Bạn đang chi tiêu nhiều vào ăn uống. Hãy thử giảm 15%.";
-    } else if (text.contains("tiết kiệm")) {
-      return "Bạn đang tiết kiệm khoảng 20% thu nhập.";
-    } else if (text.contains("đầu tư")) {
-      return "Bạn có thể bắt đầu với gửi tiết kiệm hoặc ETF.";
-    } else {
-      return "AI đang phân tích dữ liệu của bạn...";
+  Future<void> _initData() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.read<AiProvider>().loadChatHistory(user.id);
+      });
     }
   }
 
   void sendMessage(String text) {
     if (text.isEmpty) return;
-
-    setState(() {
-      messages.add({"isUser": true, "text": text});
-    });
-
+    context.read<AiProvider>().sendMessage(text);
     controller.clear();
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      setState(() {
-        messages.add({
-          "isUser": false,
-          "text": getAIResponse(text),
-        });
-      });
-    });
   }
 
   /// ================= MENU ACTION =================
 
-  void newChat() {
-    setState(() {
-      messages.clear();
-    });
-  }
-
   void copyChat() {
-    final text = messages.map((m) => m["text"]).join("\n");
+    final messages = context.read<AiProvider>().chatMessages;
+    final text = messages.map((m) => "${m.role}: ${m.content}").join("\n");
 
     Clipboard.setData(ClipboardData(text: text));
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Đã sao chép cuộc trò chuyện")),
-    );
-  }
-
-  void downloadChat() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Đã tải xuống file .txt (demo)")),
-    );
+    AppSnackBar.success(context, 'Đã sao chép cuộc trò chuyện');
   }
 
   void deleteChat() {
-    setState(() {
-      messages.clear();
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Đã xoá lịch sử")),
-    );
+    // TODO: Implement delete all in AiProvider
+    AppSnackBar.info(context, 'Tính năng đang được cập nhật');
   }
 
   @override
   Widget build(BuildContext context) {
+    final aiProvider = context.watch<AiProvider>();
+    final messages = aiProvider.chatMessages;
+    final isLoading = aiProvider.isLoading;
+    final isSending = aiProvider.isSending;
+
     return Scaffold(
       backgroundColor: const Color(0xffF3F4F6),
 
@@ -98,9 +78,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
-
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             CircleAvatar(
               radius: 16,
               backgroundColor: Color(0xff2F80ED),
@@ -110,10 +89,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("AI Advisor",
-                    style: TextStyle(color: Colors.black, fontSize: 16)),
-                Text("Online",
-                    style: TextStyle(color: Colors.green, fontSize: 12)),
+                Text("AI Advisor", style: TextStyle(color: Colors.black, fontSize: 16)),
+                Text("Online", style: TextStyle(color: Colors.green, fontSize: 12)),
               ],
             )
           ],
@@ -123,36 +100,20 @@ class _AIChatScreenState extends State<AIChatScreen> {
         actions: [
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.black),
-
             onSelected: (value) {
               switch (value) {
-                case "new":
-                  newChat();
-                  break;
                 case "copy":
                   copyChat();
-                  break;
-                case "download":
-                  downloadChat();
                   break;
                 case "delete":
                   deleteChat();
                   break;
               }
             },
-
             itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: "new",
-                child: Text("Cuộc trò chuyện mới"),
-              ),
               const PopupMenuItem(
                 value: "copy",
                 child: Text("Sao chép cuộc trò chuyện"),
-              ),
-              const PopupMenuItem(
-                value: "download",
-                child: Text("Tải xuống (.txt)"),
               ),
               const PopupMenuDivider(),
               const PopupMenuItem(
@@ -171,9 +132,13 @@ class _AIChatScreenState extends State<AIChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: messages.isEmpty ? buildWelcome() : buildChat(),
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : messages.isEmpty
+                    ? buildWelcome()
+                    : buildChat(messages, isSending),
           ),
-          buildInput(),
+          buildInput(isSending),
         ],
       ),
     );
@@ -181,66 +146,84 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
   /// ================= WELCOME =================
   Widget buildWelcome() {
-    return Column(
-      children: [
-        const SizedBox(height: 30),
-        const CircleAvatar(
-          radius: 30,
-          backgroundColor: Color(0xff2F80ED),
-          child: Icon(Iconsax.cpu, color: Colors.white),
-        ),
-        const SizedBox(height: 10),
-        const Text("Xin chào! Tôi là Fiscal AI 👋",
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 20),
-
-        ...suggestions.map((text) => GestureDetector(
-              onTap: () => sendMessage(text),
-              child: Container(
-                margin: const EdgeInsets.all(10),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          const SizedBox(height: 30),
+          const CircleAvatar(
+            radius: 30,
+            backgroundColor: Color(0xff2F80ED),
+            child: Icon(Iconsax.cpu, color: Colors.white),
+          ),
+          const SizedBox(height: 10),
+          const Text("Xin chào! Tôi là Fiscal AI 👋",
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          ...suggestions.map((text) => GestureDetector(
+                onTap: () => sendMessage(text),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Iconsax.flash, color: Colors.blue),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(text)),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Iconsax.flash, color: Colors.blue),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text(text)),
-                  ],
-                ),
-              ),
-            ))
-      ],
+              ))
+        ],
+      ),
     );
   }
 
   /// ================= CHAT =================
-  Widget buildChat() {
+  Widget buildChat(List<AiChatMessage> messages, bool isSending) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: messages.length,
+      itemCount: messages.length + (isSending ? 1 : 0),
       itemBuilder: (_, i) {
+        if (i == messages.length) {
+          return Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+
         final msg = messages[i];
-        final isUser = msg["isUser"];
+        final isUser = msg.role == 'user';
 
         return Align(
-          alignment:
-              isUser ? Alignment.centerRight : Alignment.centerLeft,
+          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(12),
+            constraints:
+                BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
             decoration: BoxDecoration(
-              color: isUser
-                  ? const Color(0xff2F80ED)
-                  : Colors.white,
+              color: isUser ? const Color(0xff2F80ED) : Colors.white,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
-              msg["text"],
-              style: TextStyle(
-                  color: isUser ? Colors.white : Colors.black),
+              msg.content,
+              style: TextStyle(color: isUser ? Colors.white : Colors.black),
             ),
           ),
         );
@@ -249,7 +232,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
   }
 
   /// ================= INPUT =================
-  Widget buildInput() {
+  Widget buildInput(bool isSending) {
     return Container(
       padding: const EdgeInsets.all(10),
       color: Colors.white,
@@ -258,6 +241,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
           Expanded(
             child: TextField(
               controller: controller,
+              enabled: !isSending,
+              onSubmitted: sendMessage,
               decoration: InputDecoration(
                 hintText: "Hỏi AI...",
                 prefixIcon: const Icon(Iconsax.cpu),
@@ -272,10 +257,10 @@ class _AIChatScreenState extends State<AIChatScreen> {
           ),
           const SizedBox(width: 10),
           GestureDetector(
-            onTap: () => sendMessage(controller.text),
-            child: const CircleAvatar(
-              backgroundColor: Color(0xff2F80ED),
-              child: Icon(Iconsax.send_1, color: Colors.white),
+            onTap: isSending ? null : () => sendMessage(controller.text),
+            child: CircleAvatar(
+              backgroundColor: isSending ? Colors.grey : const Color(0xff2F80ED),
+              child: const Icon(Iconsax.send_1, color: Colors.white),
             ),
           )
         ],

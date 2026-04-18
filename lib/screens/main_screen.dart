@@ -22,9 +22,10 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
 
-    /// 🔥 FRONTEND MODE (KHÔNG CHECK AUTH)
     screens = [
-      const HomeScreen(),
+      HomeScreen(onNavigate: (index) {
+        setState(() => currentIndex = index);
+      }),
       const WalletScreen(),
       const StatisticsScreen(),
       const SettingScreen(),

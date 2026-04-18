@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:provider/provider.dart';
+
+import '../../providers/auth_provider.dart';
+import '../../utils/snackbar.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/feature_card.dart';
 
@@ -13,8 +17,26 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool obscurePassword = true;
 
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  /// ✅ THÊM: MAP ERROR
+  String _mapError(String error) {
+    if (error.contains("Invalid login credentials")) {
+      return "Email hoặc mật khẩu không đúng.";
+    }
+
+    if (error.contains("rate limit")) {
+      return "Bạn thao tác quá nhanh. Vui lòng thử lại sau.";
+    }
+
+    return "Đăng nhập thất bại. Vui lòng thử lại.";
+  }
+
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
     return Scaffold(
       backgroundColor: const Color(0xffF3F4F6),
       body: SingleChildScrollView(
@@ -46,8 +68,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(color: Colors.white70),
                   ),
                   SizedBox(height: 20),
-
-                  /// STAT
                   Row(
                     children: [
                       Expanded(
@@ -145,8 +165,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   /// EMAIL
                   TextField(
+                    controller: _emailController,
                     decoration: InputDecoration(
                       hintText: "Email",
+                      helperText: "Nhập email đã đăng ký", // ✅ THÊM
                       prefixIcon: const Icon(Iconsax.sms),
                       filled: true,
                       fillColor: const Color(0xffF9FAFB),
@@ -161,9 +183,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   /// PASSWORD
                   TextField(
+                    controller: _passwordController,
                     obscureText: obscurePassword,
                     decoration: InputDecoration(
                       hintText: "Mật khẩu",
+                      helperText: "Tối thiểu 6 ký tự", // ✅ THÊM
                       prefixIcon: const Icon(Iconsax.lock),
                       suffixIcon: GestureDetector(
                         onTap: () {
@@ -188,6 +212,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 20),
 
+                  /// ERROR
+                  if (auth.error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text(
+                        _mapError(auth.error!), // ✅ FIX
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+
                   /// BUTTON
                   SizedBox(
                     width: double.infinity,
@@ -200,13 +234,45 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         elevation: 2,
                       ),
-                      onPressed: () {
-                        Navigator.pushReplacementNamed(context, '/home');
-                      },
-                      child: const Text(
-                        "Đăng nhập",
-                        style: TextStyle(fontSize: 16),
-                      ),
+                      onPressed: auth.isLoading
+                          ? null
+                          : () async {
+                              final email =
+                                  _emailController.text.trim();
+                              final password =
+                                  _passwordController.text.trim();
+
+                              /// 
+                              if (email.isEmpty ||
+                                  password.isEmpty) {
+                                AppSnackBar.warning(context, 'Vui lòng nhập đầy đủ thông tin');
+                                return;
+                              }
+
+                              if (!email.contains('@')) {
+                                AppSnackBar.warning(context, 'Email không hợp lệ');
+                                return;
+                              }
+
+                              await auth.signIn(
+                                email: email,
+                                password: password,
+                              );
+
+                              if (auth.isAuthenticated &&
+                                  context.mounted) {
+                                Navigator.pushReplacementNamed(
+                                    context, '/home');
+                              }
+                            },
+                      child: auth.isLoading
+                          ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                          : const Text(
+                              "Đăng nhập",
+                              style: TextStyle(fontSize: 16),
+                            ),
                     ),
                   ),
 

@@ -1,98 +1,142 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../providers/transaction_provider.dart';
+import '../../providers/category_provider.dart';
+import '../../providers/wallet_provider.dart';
+import '../../models/transaction.dart';
+import '../../models/category.dart' as model;
+import '../../models/wallet.dart';
+import '../../utils/formatters.dart';
+import '../../utils/snackbar.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key});
+  final Transaction? transaction;
+
+  const AddTransactionScreen({super.key, this.transaction});
 
   @override
-  State<AddTransactionScreen> createState() =>
-      _AddTransactionScreenState();
+  State<AddTransactionScreen> createState() => _AddTransactionScreenState();
 }
 
 class _AddTransactionScreenState extends State<AddTransactionScreen> {
-  bool isExpense = true;
-  DateTime selectedDate = DateTime.now();
+  late bool isExpense;
+  late DateTime selectedDate;
+  bool _isSubmitting = false;
+  bool get _isEditing => widget.transaction != null;
 
-  final TextEditingController amountController =
-      TextEditingController();
-  final TextEditingController descController =
-      TextEditingController();
+  final TextEditingController amountController = TextEditingController();
+  final TextEditingController descController = TextEditingController();
 
-  String selectedCategory = "Ăn uống";
-
-  /// ================= CATEGORY =================
-
-  final List<Map<String, dynamic>> expenseCategories = [
-    {"name": "Ăn uống", "icon": Iconsax.reserve, "color": Colors.red},
-    {"name": "Cafe", "icon": Iconsax.coffee, "color": Colors.orange},
-    {"name": "Mua sắm", "icon": Iconsax.shop, "color": Colors.blue},
-    {"name": "Di chuyển", "icon": Iconsax.car, "color": Colors.green},
-    {"name": "Tiện ích", "icon": Iconsax.flash, "color": Colors.grey},
-  ];
-
-  final List<Map<String, dynamic>> incomeCategories = [
-    {"name": "Tiền lương", "icon": Iconsax.money_recive, "color": Colors.green},
-    {"name": "Thưởng", "icon": Iconsax.gift, "color": Colors.amber},
-    {"name": "Đầu tư", "icon": Iconsax.chart_2, "color": Colors.blue},
-    {"name": "Freelance", "icon": Iconsax.briefcase, "color": Colors.teal},
-    {"name": "Khác", "icon": Iconsax.more, "color": Colors.grey},
-  ];
-
-  /// ================= AI =================
-
-  void autoCategory(String text) {
-    text = text.toLowerCase();
-
-    if (isExpense) {
-      if (text.contains("ăn") || text.contains("phở") || text.contains("cơm")) {
-        selectedCategory = "Ăn uống";
-      } else if (text.contains("cafe") || text.contains("trà")) {
-        selectedCategory = "Cafe";
-      } else if (text.contains("grab") || text.contains("taxi")) {
-        selectedCategory = "Di chuyển";
-      } else if (text.contains("mua") || text.contains("shop")) {
-        selectedCategory = "Mua sắm";
-      }
-    } else {
-      if (text.contains("lương")) {
-        selectedCategory = "Tiền lương";
-      } else if (text.contains("thưởng")) {
-        selectedCategory = "Thưởng";
-      } else if (text.contains("freelance")) {
-        selectedCategory = "Freelance";
-      } else if (text.contains("đầu tư")) {
-        selectedCategory = "Đầu tư";
-      }
-    }
-
-    setState(() {});
-  }
+  String? selectedCategoryId;
+  String? selectedWalletId;
 
   @override
   void initState() {
     super.initState();
 
+    // Pre-fill nếu đang chỉnh sửa
+    final t = widget.transaction;
+    if (t != null) {
+      isExpense = t.type == model.TransactionType.expense;
+      selectedDate = t.date;
+      amountController.text = t.amount.toString();
+      descController.text = t.note ?? '';
+      selectedCategoryId = t.categoryId;
+      selectedWalletId = t.walletId;
+    } else {
+      isExpense = true;
+      selectedDate = DateTime.now();
+    }
+
+    _initData();
+
     descController.addListener(() {
-      autoCategory(descController.text);
+      _autoCategory(descController.text);
     });
+  }
+
+  Future<void> _initData() async {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<CategoryProvider>().loadCategories();
+      context.read<WalletProvider>().loadWallets();
+    });
+  }
+
+  void _autoCategory(String text) {
+    if (text.isEmpty) return;
+    final categories = context.read<CategoryProvider>().categories;
+    final type = isExpense ? model.TransactionType.expense : model.TransactionType.income;
+
+    final filteredCats = categories.where((c) => c.type == type).toList();
+    if (filteredCats.isEmpty) return;
+
+    final lowerText = text.toLowerCase();
+    for (var cat in filteredCats) {
+      if (lowerText.contains(cat.name.toLowerCase())) {
+        setState(() => selectedCategoryId = cat.id);
+        return;
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final currentCategories =
-        isExpense ? expenseCategories : incomeCategories;
+    final catProvider = context.watch<CategoryProvider>();
+    final walletProvider = context.watch<WalletProvider>();
+
+    final type = isExpense ? model.TransactionType.expense : model.TransactionType.income;
+    final currentCategories = catProvider.categories.where((c) => c.type == type).toList();
+    final wallets = walletProvider.wallets;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      if (wallets.isNotEmpty) {
+        final exists = selectedWalletId != null && wallets.any((w) => w.id == selectedWalletId);
+        if (!exists) {
+          setState(() => selectedWalletId = wallets.first.id);
+        }
+      }
+
+      if (currentCategories.isNotEmpty) {
+        final exists = selectedCategoryId != null &&
+            currentCategories.any((c) => c.id == selectedCategoryId);
+        if (!exists) {
+          setState(() => selectedCategoryId = currentCategories.first.id);
+        }
+      }
+    });
+
+    model.Category? selectedCategory;
+    if (selectedCategoryId != null) {
+      try {
+        selectedCategory =
+            currentCategories.firstWhere((c) => c.id == selectedCategoryId);
+      } catch (_) {
+        selectedCategory = null;
+      }
+    }
+
+    Wallet? selectedWallet;
+    if (selectedWalletId != null) {
+      try {
+        selectedWallet = wallets.firstWhere((w) => w.id == selectedWalletId);
+      } catch (_) {
+        selectedWallet = null;
+      }
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xffF3F4F6),
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
-        title: const Text("Thêm giao dịch",
-            style: TextStyle(color: Colors.black)),
+        title: Text(_isEditing ? "Chỉnh sửa giao dịch" : "Thêm giao dịch", style: const TextStyle(color: Colors.black)),
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -111,7 +155,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       onTap: () {
                         setState(() {
                           isExpense = true;
-                          selectedCategory = "Ăn uống";
+                          selectedCategoryId = null;
                         });
                       },
                       child: Container(
@@ -124,8 +168,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                           child: Text(
                             "Chi tiêu",
                             style: TextStyle(
-                              color:
-                                  isExpense ? Colors.white : Colors.black,
+                              color: isExpense ? Colors.white : Colors.black,
                             ),
                           ),
                         ),
@@ -137,22 +180,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                       onTap: () {
                         setState(() {
                           isExpense = false;
-                          selectedCategory = "Tiền lương";
+                          selectedCategoryId = null;
                         });
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          color:
-                              !isExpense ? Colors.green : Colors.transparent,
+                          color: !isExpense ? Colors.green : Colors.transparent,
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Center(
                           child: Text(
                             "Thu nhập",
                             style: TextStyle(
-                              color:
-                                  !isExpense ? Colors.white : Colors.black,
+                              color: !isExpense ? Colors.white : Colors.black,
                             ),
                           ),
                         ),
@@ -165,10 +206,36 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             const SizedBox(height: 20),
 
+            /// ================= WALLET SELECT =================
+            const Text("Chọn ví"),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: wallets.any((w) => w.id == selectedWalletId) ? selectedWalletId : null,
+                  isExpanded: true,
+                  items: wallets
+                      .map((w) => DropdownMenuItem(
+                            value: w.id,
+                            child: Text(w.name),
+                          ))
+                      .toList(),
+                  onChanged: (val) => setState(() => selectedWalletId = val),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             /// ================= AMOUNT =================
             const Text("Số tiền (₫)"),
             const SizedBox(height: 8),
-            buildInput(amountController, "0", Iconsax.money),
+            buildInput(amountController, "0", Iconsax.money, isNumber: true),
 
             const SizedBox(height: 16),
 
@@ -179,10 +246,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             const SizedBox(height: 6),
 
-            Text(
-              "🤖 AI gợi ý: $selectedCategory",
-              style: const TextStyle(color: Colors.blue),
-            ),
+            if (selectedCategory != null)
+              Text(
+                "🤖 AI gợi ý: ${selectedCategory!.name}",
+                style: const TextStyle(color: Colors.blue, fontSize: 12),
+              ),
 
             const SizedBox(height: 16),
 
@@ -197,59 +265,126 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const Text("Danh mục"),
             const SizedBox(height: 10),
 
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: currentCategories.map((cat) {
-                final isSelected = selectedCategory == cat["name"];
+            if (currentCategories.isEmpty)
+              const Text("Đang tải danh mục...", style: TextStyle(color: Colors.grey))
+            else
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: currentCategories.map((cat) {
+                  final isSelected = selectedCategoryId == cat.id;
 
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      selectedCategory = cat["name"];
-                    });
-                  },
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: cat["color"].withOpacity(0.1),
-                          shape: BoxShape.circle,
-                          border: isSelected
-                              ? Border.all(color: Colors.blue, width: 2)
-                              : null,
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedCategoryId = cat.id;
+                      });
+                    },
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.white,
+                            shape: BoxShape.circle,
+                            border: isSelected ? Border.all(color: Colors.blue, width: 2) : null,
+                          ),
+                          child: Text(cat.icon, style: const TextStyle(fontSize: 20)),
                         ),
-                        child: Icon(cat["icon"], color: cat["color"]),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(cat["name"],
-                          style: const TextStyle(fontSize: 12))
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
+                        const SizedBox(height: 5),
+                        Text(cat.name, style: const TextStyle(fontSize: 12))
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
 
             /// ================= BUTTON =================
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      isExpense ? Colors.red : Colors.green,
+                  backgroundColor: isExpense ? Colors.red : Colors.green,
                   padding: const EdgeInsets.all(16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
-                onPressed: () {
-                  Navigator.pop(context);
+                onPressed: () async {
+                  if (_isSubmitting) return;
+                  final amount = int.tryParse(amountController.text) ?? 0;
+                  if (amount <= 0 || selectedCategoryId == null || selectedWalletId == null) {
+                    AppSnackBar.warning(context, 'Vui lòng điền đầy đủ thông tin');
+                    return;
+                  }
+
+                  final user = Supabase.instance.client.auth.currentUser;
+                  if (user == null) return;
+
+                  final wallet = wallets.firstWhere(
+                    (w) => w.id == selectedWalletId,
+                    orElse: () => wallets.first,
+                  );
+                  final category = currentCategories.firstWhere(
+                    (c) => c.id == selectedCategoryId,
+                    orElse: () => currentCategories.first,
+                  );
+
+                  try {
+                    setState(() => _isSubmitting = true);
+
+                    if (_isEditing) {
+                      // Cập nhật giao dịch
+                      final updatedTransaction = widget.transaction!.copyWith(
+                        walletId: wallet.id,
+                        categoryId: category.id,
+                        type: type,
+                        amount: amount,
+                        note: descController.text.trim(),
+                        date: selectedDate,
+                      );
+                      await context.read<TransactionProvider>().updateTransaction(updatedTransaction);
+                      if (!mounted) return;
+                      await context.read<WalletProvider>().loadWallets();
+                      if (!mounted) return;
+                      AppSnackBar.success(context, 'Đã cập nhật giao dịch');
+                    } else {
+                      // Thêm mới
+                      final newTransaction = Transaction(
+                        id: '',
+                        userId: user.id,
+                        walletId: wallet.id,
+                        categoryId: category.id,
+                        type: type,
+                        amount: amount,
+                        note: descController.text.trim(),
+                        date: selectedDate,
+                        createdAt: DateTime.now(),
+                        updatedAt: DateTime.now(),
+                      );
+                      await context.read<TransactionProvider>().addTransaction(newTransaction);
+                      if (!mounted) return;
+                      await context.read<WalletProvider>().loadWallets();
+                      if (!mounted) return;
+                      AppSnackBar.success(context, 'Đã thêm giao dịch');
+                    }
+                    Navigator.pop(context);
+                  } catch (e) {
+                    if (!mounted) return;
+                    AppSnackBar.error(context, 'Lỗi: $e');
+                  } finally {
+                    if (mounted) {
+                      setState(() => _isSubmitting = false);
+                    }
+                  }
                 },
                 child: Text(
-                  isExpense ? "Thêm chi tiêu" : "Thêm thu nhập",
+                  _isEditing
+                      ? (isExpense ? "Cập nhật chi tiêu" : "Cập nhật thu nhập")
+                      : (isExpense ? "Thêm chi tiêu" : "Thêm thu nhập"),
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -261,10 +396,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   /// ================= COMPONENT =================
 
-  Widget buildInput(
-      TextEditingController controller, String hint, IconData icon) {
+  Widget buildInput(TextEditingController controller, String hint, IconData icon,
+      {bool isNumber = false}) {
     return TextField(
       controller: controller,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         hintText: hint,
         prefixIcon: Icon(icon),
@@ -301,8 +437,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-                "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}"),
+            Text("${selectedDate.day}/${selectedDate.month}/${selectedDate.year}"),
             const Icon(Iconsax.calendar),
           ],
         ),

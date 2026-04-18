@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:provider/provider.dart';
+
+import '../../providers/auth_provider.dart';
+import '../../utils/snackbar.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/feature_card.dart';
 
@@ -13,8 +17,43 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   bool obscurePassword = true;
 
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  /// ===== MAP ERROR =====
+  String _mapError(String error) {
+    if (error.contains("rate limit")) {
+      return "Bạn thao tác quá nhanh. Vui lòng thử lại sau vài phút.";
+    }
+
+    if (error.contains("User already registered")) {
+      return "Email này đã được đăng ký.";
+    }
+
+    if (error.contains("Invalid login credentials")) {
+      return "Email hoặc mật khẩu không đúng.";
+    }
+
+    if (error.contains("Password")) {
+      return "Mật khẩu phải ít nhất 6 ký tự.";
+    }
+
+    return "Đăng ký thất bại. Vui lòng thử lại.";
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
     return Scaffold(
       backgroundColor: const Color(0xffF3F4F6),
       body: SingleChildScrollView(
@@ -46,8 +85,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     style: TextStyle(color: Colors.white70),
                   ),
                   SizedBox(height: 20),
-
-                  /// STAT
                   Row(
                     children: [
                       Expanded(
@@ -133,8 +170,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                   const SizedBox(height: 15),
 
-                  /// INPUT NAME
+                  /// NAME
                   TextField(
+                    controller: _nameController,
                     decoration: InputDecoration(
                       hintText: "Họ và tên",
                       prefixIcon: const Icon(Iconsax.user),
@@ -149,8 +187,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                   const SizedBox(height: 10),
 
-                  /// INPUT EMAIL
+                  /// EMAIL
                   TextField(
+                    controller: _emailController,
                     decoration: InputDecoration(
                       hintText: "Email",
                       prefixIcon: const Icon(Iconsax.sms),
@@ -165,11 +204,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                   const SizedBox(height: 10),
 
-                  /// INPUT PASSWORD
+                  /// PASSWORD
                   TextField(
+                    controller: _passwordController,
                     obscureText: obscurePassword,
                     decoration: InputDecoration(
                       hintText: "Mật khẩu",
+                      helperText: "Tối thiểu 6 ký tự (ví dụ: 123456)",
                       prefixIcon: const Icon(Iconsax.lock),
                       suffixIcon: GestureDetector(
                         onTap: () {
@@ -194,6 +235,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                   const SizedBox(height: 20),
 
+                  /// ERROR
+                  if (auth.error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Text(
+                        _mapError(auth.error!),
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+
                   /// BUTTON
                   SizedBox(
                     width: double.infinity,
@@ -204,24 +255,71 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           borderRadius: BorderRadius.circular(30),
                         ),
                         backgroundColor: const Color(0xff2F80ED),
-                        elevation: 2,
                       ),
-                      onPressed: () {
-                        Navigator.pushReplacementNamed(context, '/home');
-                      },
-                      child: const Text(
-                        "Đăng ký",
-                        style: TextStyle(fontSize: 16),
-                      ),
+                      onPressed: auth.isLoading
+                          ? null
+                          : () async {
+                              final name =
+                                  _nameController.text.trim();
+                              final email =
+                                  _emailController.text.trim();
+                              final password =
+                                  _passwordController.text.trim();
+
+                              if (name.isEmpty ||
+                                  email.isEmpty ||
+                                  password.isEmpty) {
+                                AppSnackBar.warning(context, 'Vui lòng nhập đầy đủ thông tin');
+                                return;
+                              }
+
+                              if (!email.contains('@')) {
+                                AppSnackBar.warning(context, 'Email không hợp lệ');
+                                return;
+                              }
+
+                              if (password.length < 6) {
+                                AppSnackBar.warning(context, 'Mật khẩu phải ít nhất 6 ký tự');
+                                return;
+                              }
+
+                              await auth.signUp(
+                                fullName: name,
+                                email: email,
+                                password: password,
+                              );
+
+                              if (auth.error == null &&
+                                  context.mounted) {
+                                AppSnackBar.success(context, 'Đăng ký thành công! Bạn có thể đăng nhập ngay');
+
+                                Future.delayed(
+                                    const Duration(seconds: 1), () {
+                                  if (context.mounted) {
+                                    Navigator.pushReplacementNamed(
+                                        context, '/login');
+                                  }
+                                });
+                              }
+                            },
+                      child: auth.isLoading
+                          ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                          : const Text(
+                              "Đăng ký",
+                              style: TextStyle(fontSize: 16),
+                            ),
                     ),
                   ),
 
                   const SizedBox(height: 12),
 
-                  /// LOGIN TEXT
+                  /// LOGIN
                   GestureDetector(
                     onTap: () {
-                      Navigator.pushReplacementNamed(context, '/login');
+                      Navigator.pushReplacementNamed(
+                          context, '/login');
                     },
                     child: const Text(
                       "Đã có tài khoản? Đăng nhập",
