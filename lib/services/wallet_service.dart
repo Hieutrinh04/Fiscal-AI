@@ -29,21 +29,22 @@ class WalletService {
   }
 
   /// ================= CREATE =================
-  Future<void> addWallet({
+  Future<Map<String, dynamic>> addWallet({
     required String userId,
     required String name,
     int balance = 0,
     String? icon,
     String? color,
   }) async {
-    await _client.from(_table).insert({
+    final data = await _client.from(_table).insert({
       'user_id': userId,
       'name': name,
       'balance': balance,
       'icon': icon,
       'color': color,
       'created_at': DateTime.now().toIso8601String(),
-    });
+    }).select().single();
+    return data;
   }
 
   /// ================= UPDATE =================

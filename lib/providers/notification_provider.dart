@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/notification.dart';
 import '../services/notification_service.dart';
 
@@ -34,44 +35,81 @@ class NotificationProvider extends ChangeNotifier {
 
   /// ================= MARK 1 =================
   Future<void> markAsRead(String id) async {
+    // Optimistic: cập nhật UI ngay lập tức
+    final index = _notifications.indexWhere((n) => n.id == id);
+    if (index == -1) return;
+
+    _notifications[index] = _notifications[index].copyWith(isRead: true);
+    notifyListeners();
+
     try {
       await _notificationService.markAsRead(id);
-
-      final index =
-          _notifications.indexWhere((n) => n.id == id);
-
-      if (index != -1) {
-        _notifications[index] =
-            _notifications[index].copyWith(isRead: true);
-        notifyListeners();
-      }
     } catch (e) {
+      // Không rollback - giữ UI đã đọc, chỉ log lỗi
       _error = e.toString();
     }
   }
 
   /// ================= MARK ALL =================
   Future<void> markAllAsRead() async {
+    // Optimistic: cập nhật UI ngay lập tức
+    _notifications = _notifications
+        .map((n) => n.copyWith(isRead: true))
+        .toList();
+    notifyListeners();
+
     try {
       await _notificationService.markAllAsRead();
-
-      _notifications = _notifications
-          .map((n) => n.copyWith(isRead: true))
-          .toList();
-
-      notifyListeners();
     } catch (e) {
+      // Không rollback - giữ UI đã đọc, chỉ log lỗi
       _error = e.toString();
     }
   }
 
   /// ================= DELETE =================
   Future<void> deleteNotification(String id) async {
+    // Optimistic: xoá khỏi UI ngay lập tức
+    final index = _notifications.indexWhere((n) => n.id == id);
+    if (index == -1) return;
+
+    _notifications.removeAt(index);
+    notifyListeners();
+
     try {
       await _notificationService.deleteNotification(id);
+    } catch (e) {
+      // Không rollback - giữ UI đã xoá, chỉ log lỗi
+      _error = e.toString();
+    }
+  }
 
-      _notifications.removeWhere((n) => n.id == id);
+  /// ================= CREATE =================
+  Future<void> addNotification({
+    required String title,
+    String? body,
+    String type = 'general',
+  }) async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
 
+      await _notificationService.addNotification(
+        userId: user.id,
+        title: title,
+        body: body,
+        type: type,
+      );
+
+      // Append vào list thay vì reload toàn bộ
+      _notifications.insert(0, AppNotification(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        userId: user.id,
+        title: title,
+        body: body,
+        type: type,
+        isRead: false,
+        createdAt: DateTime.now(),
+      ));
       notifyListeners();
     } catch (e) {
       _error = e.toString();

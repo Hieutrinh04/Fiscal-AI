@@ -313,6 +313,69 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
 
+                  const SizedBox(height: 16),
+
+                  /// DIVIDER
+                  Row(
+                    children: const [
+                      Expanded(child: Divider()),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          'hoặc',
+                          style: TextStyle(color: Colors.grey, fontSize: 13),
+                        ),
+                      ),
+                      Expanded(child: Divider()),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  /// GOOGLE SIGN IN
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.all(14),
+                        side: const BorderSide(color: Color(0xffE5E7EB)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        backgroundColor: Colors.white,
+                      ),
+                      onPressed: auth.isLoading
+                          ? null
+                          : () async {
+                              await auth.signInWithGoogle();
+                              // Navigation handled by onAuthStateChange listener
+                              if (auth.error != null &&
+                                  context.mounted) {
+                                AppSnackBar.warning(
+                                    context, auth.error!);
+                              }
+                            },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.mail_outline,
+                              color: Color(0xffEA4335), size: 20),
+                          const SizedBox(width: 10),
+                          Text(
+                            auth.isLoading
+                                ? 'Đang đăng nhập...'
+                                : 'Đăng ký với Google',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                   const SizedBox(height: 12),
 
                   /// LOGIN

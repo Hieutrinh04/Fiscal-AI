@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 import '../providers/notification_provider.dart';
+import '../providers/shared_fund_provider.dart';
 import '../models/notification.dart';
+import '../models/shared_fund.dart';
 
 class NotificationPanel extends StatelessWidget {
   final VoidCallback onClose;
@@ -21,6 +23,8 @@ class NotificationPanel extends StatelessWidget {
         return const Color(0xff2F80ED);
       case 'ai':
         return const Color(0xff8B5CF6);
+      case 'fund_invite':
+        return const Color(0xffF59E0B);
       default:
         return const Color(0xff2F80ED);
     }
@@ -36,6 +40,8 @@ class NotificationPanel extends StatelessWidget {
         return const Color(0xffEFF6FF);
       case 'ai':
         return const Color(0xffF3E8FF);
+      case 'fund_invite':
+        return const Color(0xffFEF3C7);
       default:
         return const Color(0xffEFF6FF);
     }
@@ -51,6 +57,8 @@ class NotificationPanel extends StatelessWidget {
         return Iconsax.clock;
       case 'ai':
         return Iconsax.cpu;
+      case 'fund_invite':
+        return Iconsax.people;
       default:
         return Iconsax.notification;
     }
@@ -68,7 +76,9 @@ class NotificationPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final notiProvider = context.watch<NotificationProvider>();
+    final fundProvider = context.watch<SharedFundProvider>();
     final notifications = notiProvider.notifications;
+    final pendingInvitations = fundProvider.invitations;
 
     return Stack(
       children: [
@@ -206,6 +216,15 @@ class NotificationPanel extends StatelessWidget {
                               timeAgo: _timeAgo(n.createdAt),
                               onMarkRead: () => notiProvider.markAsRead(n.id),
                               onDelete: () => notiProvider.deleteNotification(n.id),
+                              pendingInvitations: pendingInvitations,
+                              onAcceptInvitation: (inv) async {
+                                final ok = await fundProvider.acceptInvitation(inv.id, inv.fundId);
+                                if (ok) notiProvider.markAsRead(n.id);
+                              },
+                              onDeclineInvitation: (inv) async {
+                                final ok = await fundProvider.declineInvitation(inv.id);
+                                if (ok) notiProvider.markAsRead(n.id);
+                              },
                             );
                           },
                         ),
@@ -252,6 +271,9 @@ class _NotiItem extends StatelessWidget {
   final String timeAgo;
   final VoidCallback onMarkRead;
   final VoidCallback onDelete;
+  final List<FundInvitation> pendingInvitations;
+  final Function(FundInvitation)? onAcceptInvitation;
+  final Function(FundInvitation)? onDeclineInvitation;
 
   const _NotiItem({
     required this.notification,
@@ -261,11 +283,15 @@ class _NotiItem extends StatelessWidget {
     required this.timeAgo,
     required this.onMarkRead,
     required this.onDelete,
+    this.pendingInvitations = const [],
+    this.onAcceptInvitation,
+    this.onDeclineInvitation,
   });
 
   @override
   Widget build(BuildContext context) {
     final isUnread = !notification.isRead;
+    final isFundInvite = notification.type == 'fund_invite';
 
     return Dismissible(
       key: ValueKey(notification.id),
@@ -288,7 +314,7 @@ class _NotiItem extends StatelessWidget {
       ),
       onDismissed: (_) => onDelete(),
       child: GestureDetector(
-        onTap: isUnread ? onMarkRead : null,
+        onTap: (isUnread && !isFundInvite) ? onMarkRead : null,
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -359,6 +385,68 @@ class _NotiItem extends StatelessWidget {
                         ),
                       ],
                     ),
+
+                    /// FUND INVITE ACTIONS
+                    if (isFundInvite && isUnread && pendingInvitations.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: SizedBox(
+                                height: 34,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xff16A34A),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  ),
+                                  icon: const Icon(Iconsax.tick_circle, size: 16),
+                                  onPressed: () {
+                                    if (pendingInvitations.isNotEmpty) {
+                                      onAcceptInvitation?.call(pendingInvitations.first);
+                                    }
+                                  },
+                                  label: const Text('Đồng ý'),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: SizedBox(
+                                height: 34,
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    side: const BorderSide(color: Colors.red),
+                                    foregroundColor: Colors.red,
+                                  ),
+                                  icon: const Icon(Iconsax.close_circle, size: 16),
+                                  onPressed: () {
+                                    if (pendingInvitations.isNotEmpty) {
+                                      onDeclineInvitation?.call(pendingInvitations.first);
+                                    }
+                                  },
+                                  label: const Text('Từ chối'),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    if (isFundInvite && !isUnread)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          'Đã xử lý',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                        ),
+                      ),
                   ],
                 ),
               ),

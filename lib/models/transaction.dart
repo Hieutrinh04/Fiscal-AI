@@ -38,6 +38,15 @@ class Transaction {
     this.wallet,
   });
 
+  /// Tên hiển thị: note nếu có, nếu rỗng → tên danh mục, cuối cùng → 'Giao dịch'
+  String get displayTitle {
+    final n = note?.trim();
+    if (n != null && n.isNotEmpty) return n;
+    final catName = category?.name.trim();
+    if (catName != null && catName.isNotEmpty) return catName;
+    return 'Giao dịch';
+  }
+
   factory Transaction.fromJson(Map<String, dynamic> json) {
     final dateValue = json['transaction_date'] ?? json['date'];
     final createdAtValue = json['created_at'];

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile.dart';
 
@@ -43,6 +44,69 @@ class AuthService {
       password: password,
     );
 
+    return response.user;
+  }
+
+  /// ================= FORGOT PASSWORD =================
+  Future<void> resetPassword({required String email}) async {
+    await _client.auth.resetPasswordForEmail(
+      email,
+      redirectTo: kIsWeb
+          ? 'http://localhost:3000'
+          : 'com.example.wallet://login-callback',
+    );
+  }
+
+  /// ================= GOOGLE SIGN IN (Supabase OAuth) =================
+  ///
+  /// Web: dùng redirectMode (chuyển hẳn sang trang Google rồi quay lại)
+  /// Mobile: dùng deep link để app nhận callback
+  ///
+  /// Session được xử lý qua onAuthStateChange listener.
+  Future<void> signInWithGoogle() async {
+    if (kIsWeb) {
+      /// Web: dùng redirect mode – ổn định hơn popup (không bị chặn)
+      await _client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: null, // Supabase dùng Site URL từ dashboard
+      );
+    } else {
+      /// Mobile: cần deep link
+      await _client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'com.example.wallet://login-callback',
+      );
+    }
+  }
+
+  /// ================= ENSURE PROFILE (gọi từ listener) =================
+  Future<void> ensureProfile(User user) async {
+    final existing = await _client
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    if (existing == null) {
+      await _client.from('profiles').upsert({
+        'id': user.id,
+        'email': user.email ?? '',
+        'full_name': user.userMetadata?['full_name'] ??
+            user.userMetadata?['name'] ??
+            '',
+        'avatar_url': user.userMetadata?['avatar_url'] ??
+            user.userMetadata?['picture'] ??
+            '',
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    }
+  }
+
+  /// ================= UPDATE PASSWORD (after reset) =================
+  Future<User?> updatePassword({required String newPassword}) async {
+    final response = await _client.auth.updateUser(
+      UserAttributes(password: newPassword),
+    );
     return response.user;
   }
 

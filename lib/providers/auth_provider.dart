@@ -76,6 +76,87 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// ================= RESET PASSWORD =================
+  Future<bool> resetPassword({required String email}) async {
+    _setLoading(true);
+    _error = null;
+
+    try {
+      await _authService.resetPassword(email: email);
+      _error = null;
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// ================= GOOGLE SIGN IN (Supabase OAuth) =================
+  ///
+  /// Chỉ gọi OAuth – session được xử lý qua onAuthStateChange listener.
+  /// Không đọc currentUser ở đây vì OAuth mở tab mới trên Web.
+  Future<void> signInWithGoogle() async {
+    _error = null;
+    _setLoading(true);
+
+    try {
+      debugPrint('[AUTH] Gọi signInWithGoogle...');
+      await _authService.signInWithGoogle();
+      debugPrint('[AUTH] signInWithGoogle hoàn tất – chờ listener xử lý session');
+      // Session sẽ được cập nhật qua handleAuthStateChange()
+    } catch (e) {
+      debugPrint('[AUTH] signInWithGoogle LỖI: $e');
+      _error = e.toString();
+      _setLoading(false);
+    }
+    // Không _setLoading(false) ở đây – listener sẽ xử lý khi signedIn
+  }
+
+  /// ================= HANDLE AUTH STATE CHANGE =================
+  /// Gọi từ onAuthStateChange listener trong main.dart
+  Future<void> handleAuthStateChange(AuthChangeEvent event, Session? session) async {
+    debugPrint('[AUTH] event=$event, session=${session != null ? "có" : "không"}');
+
+    if (event == AuthChangeEvent.signedIn && session != null) {
+      _user = session.user;
+      debugPrint('[AUTH] signedIn – user=${_user?.email}');
+      await _authService.ensureProfile(_user!);
+      await loadProfile();
+      _error = null;
+      _isLoading = false;
+      notifyListeners();
+    } else if (event == AuthChangeEvent.signedOut) {
+      _user = null;
+      _profile = null;
+      _error = null;
+      _isLoading = false;
+      notifyListeners();
+    } else if (event == AuthChangeEvent.passwordRecovery) {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// ================= UPDATE PASSWORD (after reset email) =================
+  Future<bool> updatePassword({required String newPassword}) async {
+    _setLoading(true);
+    _error = null;
+
+    try {
+      await _authService.updatePassword(newPassword: newPassword);
+      _user = Supabase.instance.client.auth.currentUser;
+      _error = null;
+      return true;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   /// ================= SIGN OUT =================
   Future<void> signOut() async {
     _setLoading(true);

@@ -1,0 +1,211 @@
+@startuml Fiscal AI - Project Architecture
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam componentStyle rectangle
+skinparam packageBackgroundColor #E8F5E9
+skinparam packageBorderColor #2E7D32
+skinparam componentBackgroundColor #E3F2FD
+skinparam componentBorderColor #1565C0
+skinparam arrowColor #37474F
+skinparam noteBackgroundColor #FFF8E1
+skinparam noteBorderColor #F57F17
+
+title Fiscal AI - Kiến trúc toàn bộ Project
+
+package "MAIN ENTRY" #E8F5E9 {
+  [main.dart] as main
+  note right of main
+    Init Supabase
+    MultiProvider (9 providers)
+    MaterialApp + Routes
+  end note
+}
+
+package "AUTHENTICATION" #FCE4EC {
+  [LoginScreen] as login
+  [RegisterScreen] as register
+  [AuthProvider] as authP
+  [AuthService] as authS
+
+  login --> authP : signIn()
+  register --> authP : signUp()
+  authP --> authS : signUp / signIn / signOut
+  authS --> Supabase : auth.signUp / signInWithPassword
+  authS --> Supabase : profiles table (CRUD)
+}
+
+package "MAIN SCREEN (Bottom Nav)" #E8EAF6 {
+  [MainScreen] as mainScreen
+  note right of mainScreen
+    Tab 0: HomeScreen
+    Tab 1: WalletScreen
+    Tab 2: StatisticsScreen
+    Tab 3: SettingScreen
+    FAB: AddTransactionScreen
+  end note
+
+  mainScreen --> [HomeScreen] as home : Tab 0
+  mainScreen --> [WalletScreen] as wallet : Tab 1
+  mainScreen --> [StatisticsScreen] as stats : Tab 2
+  mainScreen --> [SettingScreen] as settings : Tab 3
+  mainScreen --> [AddTransactionScreen] as addTx : FAB
+}
+
+package "HOME SCREEN" #E3F2FD {
+  home --> [WalletProvider] as walletP : loadWallets()
+  home --> [TransactionProvider] as txP : loadTransactions()
+  home --> [NotificationProvider] as notifP : loadNotifications()
+  home --> [AuthProvider] : loadProfile()
+  home --> [AiProvider] as aiP : setFinancialContext()
+  home --> aiP : loadInsights()
+
+  note right of home
+    _initData():
+    1. Load wallets + transactions
+    2. Build financial context
+    3. Set context on AiProvider
+    4. Load insights (DB first)
+  end note
+}
+
+package "WALLET MANAGEMENT" #E0F7FA {
+  wallet --> walletP : CRUD wallets
+  walletP --> [WalletService] as walletS
+  walletS --> Supabase : wallets table
+
+  note right of walletS
+    getWallets / addWallet
+    updateWallet / deleteWallet
+    transfer (between wallets)
+    getTotalBalance
+  end note
+}
+
+package "TRANSACTION MANAGEMENT" #FFF3E0 {
+  addTx --> txP : addTransaction()
+  txP --> [TransactionService] as txS
+  txS --> Supabase : transactions table
+  txS --> Supabase : categories (join)
+
+  note right of txS
+    getTransactions (filter by type,
+    category, wallet, date range)
+    addTransaction / update / delete
+    getTotalExpense / getTotalIncome
+    getExpenseByCategory
+  end note
+
+  txP --> notifP : send notification\n(if enabled)
+  txP --> [SettingsProvider] as settingsP : check notification\nenabled
+  txP --> walletP : update wallet balance
+  txP --> [CategoryProvider] as catP : loadCategories()
+  catP --> [CategoryService] as catS
+  catS --> Supabase : categories table
+}
+
+package "STATISTICS" #F3E5F5 {
+  stats --> txP : transactions data
+  stats --> [BudgetProvider] as budgetP : budgets data
+  budgetP --> [BudgetService] as budgetS
+  budgetS --> Supabase : budgets table
+
+  note right of stats
+    Biểu đồ chi tiêu theo danh mục
+    Biểu đồ thu nhập vs chi tiêu
+    Budget theo tháng
+  end note
+}
+
+package "GOALS" #E8F5E9 {
+  [GoalsScreen] as goals
+  goals --> [GoalProvider] as goalP
+  goalP --> [GoalService] as goalS
+  goalS --> Supabase : goals table
+
+  note right of goals
+    Mục tiêu tiết kiệm
+    Tạo / cập nhật / xoá goal
+    Theo dõi tiến độ
+  end note
+}
+
+package "AI CHAT & INSIGHTS" #FCE4EC {
+  [AIChatScreen] as aiChat
+  aiChat --> aiP : sendMessage()
+  aiP --> [AiService] as aiS : sendChatMessage()
+
+  aiS --> GeminiAPI : REST POST\nv1beta/gemini-2.0-flash
+  aiS --> Supabase : ai_chat_history
+  aiS --> Supabase : ai_insights
+
+  note right of aiS
+    sendChatMessage (multi-turn)
+    _waitForRateLimit (10s)
+    Retry on 429 (2 times)
+    getInsights (DB first, then Gemini)
+    classifyTransaction
+    getForecast
+  end note
+
+  aiS ..> aiP : error message in chat
+}
+
+package "SETTINGS" #ECEFF1 {
+  settings --> settingsP : toggle dark mode
+  settings --> settingsP : toggle notifications
+  settings --> authP : signOut()
+  settings --> authP : updateProfile()
+
+  settingsP --> SharedPreferences : persist settings
+  settingsP ..> main : themeData (light/dark)
+
+  note right of settingsP
+    notificationEnabled
+    darkModeEnabled
+    Load/Save via SharedPreferences
+    Provides ThemeData to MaterialApp
+  end note
+}
+
+package "NOTIFICATIONS" #FFF8E1 {
+  notifP --> [NotificationService] as notifS
+  notifS --> Supabase : notifications table
+
+  note right of notifS
+    getNotifications
+    markAsRead / markAllAsRead
+    addNotification
+    deleteNotification
+  end note
+}
+
+package "EXTERNAL SERVICES" #FFEBEE {
+  database "Supabase" as Supabase {
+    frame "Tables" {
+      [profiles]
+      [wallets]
+      [transactions]
+      [categories]
+      [budgets]
+      [goals]
+      [notifications]
+      [ai_chat_history]
+      [ai_insights]
+    }
+  }
+
+  cloud "Gemini API" as GeminiAPI {
+    [gemini-2.0-flash]
+  }
+
+  storage "SharedPreferences" as SharedPreferences {
+    [notification_enabled]
+    [dark_mode_enabled]
+  }
+}
+
+main --> authP : check session
+main ..> mainScreen : session != null
+main ..> login : session == null
+
+@enduml

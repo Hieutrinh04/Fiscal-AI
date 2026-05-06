@@ -24,10 +24,7 @@ class NotificationService {
   Future<void> markAsRead(String id) async {
     await _client
         .from('notifications')
-        .update({
-          'is_read': true,
-          'updated_at': DateTime.now().toIso8601String(),
-        })
+        .update({'is_read': true})
         .eq('id', id);
   }
 
@@ -38,11 +35,25 @@ class NotificationService {
 
     await _client
         .from('notifications')
-        .update({
-          'is_read': true,
-          'updated_at': DateTime.now().toIso8601String(),
-        })
+        .update({'is_read': true})
         .eq('user_id', user.id);
+  }
+
+  /// ================= CREATE =================
+  Future<void> addNotification({
+    required String userId,
+    required String title,
+    String? body,
+    String type = 'general',
+  }) async {
+    await _client.from('notifications').insert({
+      'user_id': userId,
+      'title': title,
+      'body': body,
+      'type': type,
+      'is_read': false,
+      'created_at': DateTime.now().toIso8601String(),
+    });
   }
 
   /// ================= DELETE =================

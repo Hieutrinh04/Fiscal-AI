@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../utils/snackbar.dart';
+import '../../widgets/markdown_text.dart';
 
 import '../../providers/ai_provider.dart';
 import '../../models/ai_chat_message.dart';
@@ -78,19 +80,25 @@ class _AIChatScreenState extends State<AIChatScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: const BackButton(color: Colors.black),
-        title: const Row(
+        title: Row(
           children: [
-            CircleAvatar(
+            const CircleAvatar(
               radius: 16,
               backgroundColor: Color(0xff2F80ED),
               child: Icon(Iconsax.cpu, color: Colors.white, size: 18),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("AI Advisor", style: TextStyle(color: Colors.black, fontSize: 16)),
-                Text("Online", style: TextStyle(color: Colors.green, fontSize: 12)),
+                Text("Fiscal AI",
+                    style: GoogleFonts.inter(
+                        color: Colors.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700)),
+                Text("● Đang hoạt động",
+                    style: GoogleFonts.inter(
+                        color: Colors.green.shade600, fontSize: 11)),
               ],
             )
           ],
@@ -146,33 +154,115 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
   /// ================= WELCOME =================
   Widget buildWelcome() {
+    final userName = context.watch<AiProvider>().userName;
+    final greeting = userName != null && userName.isNotEmpty
+        ? 'Xin chào, $userName! 👋'
+        : 'Xin chào! 👋';
+
     return SingleChildScrollView(
+      padding: const EdgeInsets.only(top: 40, bottom: 20),
       child: Column(
         children: [
-          const SizedBox(height: 30),
-          const CircleAvatar(
-            radius: 30,
-            backgroundColor: Color(0xff2F80ED),
-            child: Icon(Iconsax.cpu, color: Colors.white),
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [Color(0xff2F80ED), Color(0xff56CCF2)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xff2F80ED).withOpacity(0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: const Icon(Iconsax.cpu, color: Colors.white, size: 32),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            greeting,
+            style: GoogleFonts.inter(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xff1F2937),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'Tôi là Fiscal AI — trợ lý tài chính của bạn.\nHỏi tôi bất cứ điều gì về tiền bạc nhé! 💰',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 13.5,
+                height: 1.5,
+                color: const Color(0xff6B7280),
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'GỢI Ý CHO BẠN',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xff9CA3AF),
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
           ),
           const SizedBox(height: 10),
-          const Text("Xin chào! Tôi là Fiscal AI 👋",
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
           ...suggestions.map((text) => GestureDetector(
                 onTap: () => sendMessage(text),
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
-                      const Icon(Iconsax.flash, color: Colors.blue),
-                      const SizedBox(width: 10),
-                      Expanded(child: Text(text)),
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: const Color(0xff2F80ED).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Iconsax.flash_1,
+                            color: Color(0xff2F80ED), size: 16),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          text,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: const Color(0xff374151),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const Icon(Iconsax.arrow_right_3,
+                          color: Color(0xff9CA3AF), size: 16),
                     ],
                   ),
                 ),
@@ -219,11 +309,24 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
             decoration: BoxDecoration(
               color: isUser ? const Color(0xff2F80ED) : Colors.white,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                if (!isUser)
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+              ],
             ),
-            child: Text(
+            child: MarkdownText(
               msg.content,
-              style: TextStyle(color: isUser ? Colors.white : Colors.black),
+              style: GoogleFonts.inter(
+                color: isUser ? Colors.white : const Color(0xff1F2937),
+                fontSize: 14.5,
+                height: 1.55,
+                letterSpacing: 0.1,
+              ),
             ),
           ),
         );
@@ -233,37 +336,77 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
   /// ================= INPUT =================
   Widget buildInput(bool isSending) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      color: Colors.white,
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              enabled: !isSending,
-              onSubmitted: sendMessage,
-              decoration: InputDecoration(
-                hintText: "Hỏi AI...",
-                prefixIcon: const Icon(Iconsax.cpu),
-                filled: true,
-                fillColor: const Color(0xffF3F4F6),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                  borderSide: BorderSide.none,
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                enabled: !isSending,
+                onSubmitted: sendMessage,
+                style: GoogleFonts.inter(fontSize: 14.5),
+                decoration: InputDecoration(
+                  hintText: "Hỏi Fiscal AI về tài chính...",
+                  hintStyle: GoogleFonts.inter(
+                    color: const Color(0xff9CA3AF),
+                    fontSize: 14,
+                  ),
+                  prefixIcon: const Icon(Iconsax.message_text_1,
+                      color: Color(0xff2F80ED), size: 20),
+                  filled: true,
+                  fillColor: const Color(0xffF3F4F6),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: isSending ? null : () => sendMessage(controller.text),
-            child: CircleAvatar(
-              backgroundColor: isSending ? Colors.grey : const Color(0xff2F80ED),
-              child: const Icon(Iconsax.send_1, color: Colors.white),
-            ),
-          )
-        ],
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: isSending ? null : () => sendMessage(controller.text),
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: isSending
+                      ? null
+                      : const LinearGradient(
+                          colors: [Color(0xff2F80ED), Color(0xff56CCF2)],
+                        ),
+                  color: isSending ? Colors.grey.shade300 : null,
+                  boxShadow: isSending
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: const Color(0xff2F80ED).withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                ),
+                child: const Icon(Iconsax.send_1,
+                    color: Colors.white, size: 20),
+              ),
+            )
+          ],
+        ),
       ),
     );
   }

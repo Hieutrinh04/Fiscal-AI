@@ -1,0 +1,188 @@
+@startuml Fiscal AI - Mo hinh giai quyet
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam componentStyle rectangle
+skinparam packageBackgroundColor #E8F5E9
+skinparam packageBorderColor #2E7D32
+skinparam componentBackgroundColor #E3F2FD
+skinparam componentBorderColor #1565C0
+skinparam arrowColor #37474F
+skinparam noteBackgroundColor #FFF8E1
+skinparam noteBorderColor #F57F17
+
+title Fiscal AI - Mo hinh tien tien giai quyet bai toan trong tam
+
+== BAI TOAN TRONG TAM ==
+
+note as N1
+  **Quan ly tai chinh ca nhan thong minh**
+  - Kho theo doi & phan tich chi tieu
+  - Kho dua ra quyet dinh tai chinh dung dan
+  - Kho duy tri ky luat tiet kiem
+end note
+
+== MO HINH 5 LOP ==
+
+package "LOP 1: PRESENTATION LAYER" #E3F2FD {
+  rectangle "HomeScreen" as home
+  rectangle "AIChatScreen" as aiChat
+  rectangle "StatisticsScreen" as stats
+  rectangle "WalletScreen" as wallet
+  rectangle "AddTransactionScreen" as addTx
+  rectangle "SettingScreen" as setting
+  rectangle "GoalsScreen" as goals
+  rectangle "LoginScreen" as login
+  
+  note as N2
+    Flutter UI (Material 3)
+    Reactive: Provider → UI tu rebuild
+  end note
+}
+
+package "LOP 2: STATE LAYER (Observer Pattern)" #F3E5F5 {
+  rectangle "AuthProvider" as authP
+  rectangle "WalletProvider" as walletP
+  rectangle "TransactionProvider" as txP
+  rectangle "AiProvider" as aiP
+  rectangle "BudgetProvider" as budgetP
+  rectangle "GoalProvider" as goalP
+  rectangle "CategoryProvider" as catP
+  rectangle "NotificationProvider" as notifP
+  rectangle "SettingsProvider" as settingsP
+  
+  note as N3
+    ChangeNotifier + Provider
+    Data thay doi → UI tu rebuild
+    Separation of concerns
+  end note
+}
+
+package "LOP 3: BUSINESS LOGIC LAYER" #FFF3E0 {
+  rectangle "AuthService" as authS
+  rectangle "WalletService" as walletS
+  rectangle "TransactionService" as txS
+  rectangle "BudgetService" as budgetS
+  rectangle "GoalService" as goalS
+  rectangle "CategoryService" as catS
+  rectangle "NotificationService" as notifS
+  
+  note as N4
+    CRUD operations
+    Business rules (transfer, balance check)
+    Data validation
+  end note
+
+  package "★ AI SERVICE (RAG-like Context Injection) ★" #FCE4EC {
+    rectangle "AiService" as aiS #FFCDD2
+    note as N5
+      **Mo hinh tien tien nhat:**
+      1. Build financial context tu data thuc
+      2. Inject vao Gemini prompt
+      3. AI tra loi dua tren DATA THUC
+         (khong hallucinate)
+      4. Multi-turn chat history
+      5. Rate limit + retry (429)
+      6. Save DB non-blocking
+    end note
+  }
+}
+
+package "LOP 4: PERSISTENCE LAYER (BaaS)" #E8F5E9 {
+  database "Supabase" as supa {
+    rectangle "Auth (email/password)" as authDB
+    rectangle "profiles" as profilesDB
+    rectangle "wallets" as walletsDB
+    rectangle "transactions" as txDB
+    rectangle "categories" as catDB
+    rectangle "budgets" as budgetsDB
+    rectangle "goals" as goalsDB
+    rectangle "notifications" as notifDB
+    rectangle "ai_chat_history" as aiHistDB
+    rectangle "ai_insights" as aiInsDB
+  }
+  
+  note as N6
+    Backend-as-a-Service
+    Auth + DB + Realtime
+    Khong can tu xay backend
+  end note
+}
+
+package "LOP 5: EXTERNAL AI LAYER" #E8EAF6 {
+  cloud "Gemini API" as gemini {
+    rectangle "gemini-2.0-flash" as model
+  }
+  
+  storage "SharedPreferences" as prefs {
+    rectangle "notification_enabled" as pref1
+    rectangle "dark_mode_enabled" as pref2
+  }
+  
+  note as N7
+    GenAI: Tu van tai chinh ca nhan hoa
+    REST API (khong SDK)
+    Context injection → RAG-like
+  end note
+}
+
+== LUONG RAG-LIKE CONTEXT INJECTION ==
+
+note as N8
+  **User hoi:** "Thang nay toi tiet kiem duoc bao nhieu?"
+  ↓
+  **AiProvider inject financial context:**
+  "Tong so du: 5,000,000d
+   Tong chi tieu: 3,200,000d
+   Chi tieu gan day: An uong 500k, Xang 200k..."
+  ↓
+  **Gemini tra loi dua tren DATA THUC**
+  (khong hallucinate - tu van ca nhan hoa)
+end note
+
+== KET NOI CAC LOP ==
+
+home --> authP
+home --> walletP
+home --> txP
+home --> aiP
+aiChat --> aiP
+addTx --> txP
+stats --> txP
+stats --> budgetP
+wallet --> walletP
+goals --> goalP
+setting --> settingsP
+setting --> authP
+
+authP --> authS
+walletP --> walletS
+txP --> txS
+aiP --> aiS
+budgetP --> budgetS
+goalP --> goalS
+catP --> catS
+notifP --> notifS
+
+authS --> supa
+walletS --> supa
+txS --> supa
+budgetS --> supa
+goalS --> supa
+catS --> supa
+notifS --> supa
+aiS --> supa
+aiS --> gemini
+settingsP --> prefs
+
+== TOM LUONG MO HINH ==
+
+note as N9
+  **Bai toan:** Quan ly tai chinh ca nhan + tu van thong minh
+  **Mo hinh tien tien:** RAG-like Context Injection
+  - Ket hop GenAI voi du lieu thuc
+  - AI khong noi suong ma tu van dua tren so lieu that
+  - 5-lop architecture: Presentation → State → Service → BaaS → AI
+  - Multi-turn conversational AI thay dashboard tinh
+end note
+
+@enduml

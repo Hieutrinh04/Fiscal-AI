@@ -10,6 +10,7 @@ class WalletProvider extends ChangeNotifier {
   Wallet? _selectedWallet;
   bool _isLoading = false;
   String? _error;
+  RealtimeChannel? _realtimeChannel;
 
   /// ================= GETTERS =================
   List<Wallet> get wallets => _wallets;
@@ -28,6 +29,45 @@ class WalletProvider extends ChangeNotifier {
 
   int get totalBalance =>
       _wallets.fold(0, (sum, w) => sum + w.balance);
+
+  /// Validate transfer: trả về lỗi nếu không hợp lệ, null nếu OK
+  String? validateTransfer(String? fromWalletId, String? toWalletId, int amount) {
+    if (_wallets.length < 2) return 'Bạn cần ít nhất 2 ví để thực hiện chuyển tiền';
+    if (fromWalletId == null || toWalletId == null) return 'Vui lòng chọn tài khoản';
+    if (fromWalletId == toWalletId) return 'Vui lòng chọn tài khoản khác nhau';
+    if (amount <= 0) return 'Vui lòng nhập số tiền hợp lệ';
+    final fromWallet = _wallets.where((w) => w.id == fromWalletId).firstOrNull;
+    if (fromWallet == null) return 'Ví nguồn không tồn tại';
+    if (fromWallet.balance < amount) return 'Số dư không đủ';
+    return null;
+  }
+
+  /// ================= REALTIME =================
+  void subscribeRealtime() {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    _realtimeChannel?.unsubscribe();
+    _realtimeChannel = Supabase.instance.client
+        .channel('wallets-${user.id}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'wallets',
+          callback: (_) => loadWallets(),
+        )
+        .subscribe();
+  }
+
+  void cancelRealtime() {
+    _realtimeChannel?.unsubscribe();
+    _realtimeChannel = null;
+  }
+
+  @override
+  void dispose() {
+    cancelRealtime();
+    super.dispose();
+  }
 
   /// ================= LOAD =================
   Future<void> loadWallets() async {
@@ -51,9 +91,9 @@ class WalletProvider extends ChangeNotifier {
   }
 
   /// ================= ADD =================
-  Future<void> addWallet({
+  Future<Wallet> addWallet({
     required String name,
-    required String type, // Vẫn nhận từ UI
+    required String type,
     int balance = 0,
     String? icon,
     String? color,
@@ -64,10 +104,9 @@ class WalletProvider extends ChangeNotifier {
 
       if (user == null) throw Exception('Chưa đăng nhập');
 
-      await _walletService.addWallet(
+      final data = await _walletService.addWallet(
         userId: user.id,
         name: name,
-        // type: type, // Không gửi lên service nữa
         balance: balance,
         icon: icon,
         color: color,
@@ -76,6 +115,7 @@ class WalletProvider extends ChangeNotifier {
       await loadWallets();
 
       _error = null;
+      return Wallet.fromJson(data);
     } catch (e) {
       _error = e.toString();
       rethrow;

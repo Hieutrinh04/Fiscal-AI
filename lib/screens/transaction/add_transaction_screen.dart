@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +10,8 @@ import '../../providers/wallet_provider.dart';
 import '../../models/transaction.dart';
 import '../../models/category.dart' as model;
 import '../../models/wallet.dart';
+import '../../services/ai_service.dart';
+import '../../utils/category_keywords.dart';
 import '../../utils/formatters.dart';
 import '../../utils/snackbar.dart';
 
@@ -32,6 +35,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
   String? selectedCategoryId;
   String? selectedWalletId;
+  String _formattedAmount = '';
+
+  // AI suggestion state
+  final AiService _aiService = AiService();
+  Timer? _aiDebounce;
+  bool _isSuggesting = false;
+  String? _suggestionSource; // 'keyword' | 'ai' | null
+  bool _userManuallyChose = false; // user đã tự chọn → không override nữa
 
   @override
   void initState() {
@@ -53,6 +64,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
     _initData();
 
+    amountController.addListener(() {
+      _formatAmount();
+    });
+
     descController.addListener(() {
       _autoCategory(descController.text);
     });
@@ -65,21 +80,120 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     });
   }
 
-  void _autoCategory(String text) {
-    if (text.isEmpty) return;
-    final categories = context.read<CategoryProvider>().categories;
-    final type = isExpense ? model.TransactionType.expense : model.TransactionType.income;
+  void _formatAmount() {
+    final raw = amountController.text.replaceAll(',', '');
+    final num = int.tryParse(raw);
+    if (num != null && num > 0) {
+      final formatted = _formatVND(num);
+      if (_formattedAmount != formatted) {
+        _formattedAmount = formatted;
+      }
+    } else {
+      _formattedAmount = '';
+    }
+    setState(() {});
+  }
 
+  String _formatVND(int amount) {
+    final str = amount.toString();
+    final buffer = StringBuffer();
+    int count = 0;
+    for (int i = str.length - 1; i >= 0; i--) {
+      if (count > 0 && count % 3 == 0) buffer.write(',');
+      buffer.write(str[i]);
+      count++;
+    }
+    return '${buffer.toString().split('').reversed.join()}₫';
+  }
+
+  /// Gợi ý danh mục: 1) keyword local instant, 2) AI fallback debounced.
+  /// User đã chủ động chọn rồi → không override.
+  void _autoCategory(String text) {
+    _aiDebounce?.cancel();
+
+    if (text.trim().isEmpty) {
+      if (mounted) {
+        setState(() {
+          _suggestionSource = null;
+          _isSuggesting = false;
+        });
+      }
+      return;
+    }
+    if (_userManuallyChose) return;
+
+    final categories = context.read<CategoryProvider>().categories;
+    final type = isExpense
+        ? model.TransactionType.expense
+        : model.TransactionType.income;
     final filteredCats = categories.where((c) => c.type == type).toList();
     if (filteredCats.isEmpty) return;
 
-    final lowerText = text.toLowerCase();
-    for (var cat in filteredCats) {
-      if (lowerText.contains(cat.name.toLowerCase())) {
-        setState(() => selectedCategoryId = cat.id);
+    // 1️⃣ KEYWORD MAP (instant)
+    final suggestedNames = CategoryKeywords.suggest(text);
+    if (suggestedNames.isNotEmpty) {
+      for (final name in suggestedNames) {
+        final normName = CategoryKeywords.normalize(name);
+        final match = filteredCats.where((c) =>
+            CategoryKeywords.normalize(c.name).contains(normName) ||
+            normName.contains(CategoryKeywords.normalize(c.name)));
+        if (match.isNotEmpty) {
+          setState(() {
+            selectedCategoryId = match.first.id;
+            _suggestionSource = 'keyword';
+            _isSuggesting = false;
+          });
+          return;
+        }
+      }
+    }
+
+    // 2️⃣ Match trực tiếp tên danh mục (fallback nhẹ)
+    final normText = CategoryKeywords.normalize(text);
+    for (final cat in filteredCats) {
+      if (normText.contains(CategoryKeywords.normalize(cat.name))) {
+        setState(() {
+          selectedCategoryId = cat.id;
+          _suggestionSource = 'keyword';
+          _isSuggesting = false;
+        });
         return;
       }
     }
+
+    // 3️⃣ AI FALLBACK (debounce 800ms để tránh spam)
+    _aiDebounce = Timer(const Duration(milliseconds: 800), () async {
+      if (!mounted || _userManuallyChose) return;
+      if (text.trim().length < 3) return; // quá ngắn không đáng gọi AI
+
+      setState(() => _isSuggesting = true);
+
+      final catPayload = filteredCats
+          .map((c) => {'id': c.id, 'name': c.name, 'icon': c.icon})
+          .toList();
+
+      final id = await _aiService.suggestCategory(
+        note: text,
+        categories: catPayload,
+      );
+
+      if (!mounted || _userManuallyChose) return;
+      setState(() {
+        _isSuggesting = false;
+        if (id != null) {
+          selectedCategoryId = id;
+          _suggestionSource = 'ai';
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _aiDebounce?.cancel();
+    amountController.dispose();
+    descController.dispose();
+    super.dispose();
   }
 
   @override
@@ -156,7 +270,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         setState(() {
                           isExpense = true;
                           selectedCategoryId = null;
+                          _userManuallyChose = false;
+                          _suggestionSource = null;
                         });
+                        _autoCategory(descController.text);
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -181,7 +298,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         setState(() {
                           isExpense = false;
                           selectedCategoryId = null;
+                          _userManuallyChose = false;
+                          _suggestionSource = null;
                         });
+                        _autoCategory(descController.text);
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -236,6 +356,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const Text("Số tiền (₫)"),
             const SizedBox(height: 8),
             buildInput(amountController, "0", Iconsax.money, isNumber: true),
+            if (_formattedAmount.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 4),
+                child: Text(
+                  _formattedAmount,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isExpense ? Colors.red : Colors.green,
+                  ),
+                ),
+              ),
 
             const SizedBox(height: 16),
 
@@ -246,10 +378,41 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
 
             const SizedBox(height: 6),
 
-            if (selectedCategory != null)
-              Text(
-                "🤖 AI gợi ý: ${selectedCategory!.name}",
-                style: const TextStyle(color: Colors.blue, fontSize: 12),
+            // Suggestion hint
+            if (_isSuggesting)
+              Row(
+                children: [
+                  const SizedBox(
+                    width: 12,
+                    height: 12,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'AI đang phân loại...',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  ),
+                ],
+              )
+            else if (selectedCategory != null && _suggestionSource != null && !_userManuallyChose)
+              Row(
+                children: [
+                  Icon(
+                    _suggestionSource == 'ai' ? Iconsax.magic_star : Iconsax.flash_1,
+                    size: 12,
+                    color: _suggestionSource == 'ai' ? const Color(0xff8B5CF6) : Colors.blue,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _suggestionSource == 'ai'
+                        ? 'AI gợi ý: ${selectedCategory.name}'
+                        : 'Gợi ý: ${selectedCategory.name}',
+                    style: TextStyle(
+                      color: _suggestionSource == 'ai' ? const Color(0xff8B5CF6) : Colors.blue,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ),
 
             const SizedBox(height: 16),
@@ -278,6 +441,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                     onTap: () {
                       setState(() {
                         selectedCategoryId = cat.id;
+                        _userManuallyChose = true;
+                        _suggestionSource = null;
                       });
                     },
                     child: Column(
@@ -314,7 +479,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 ),
                 onPressed: () async {
                   if (_isSubmitting) return;
-                  final amount = int.tryParse(amountController.text) ?? 0;
+                  final amount = int.tryParse(amountController.text.replaceAll(',', '')) ?? 0;
                   if (amount <= 0 || selectedCategoryId == null || selectedWalletId == null) {
                     AppSnackBar.warning(context, 'Vui lòng điền đầy đủ thông tin');
                     return;

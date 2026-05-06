@@ -60,4 +60,18 @@ class AppConstants {
 
   // Budget Warning Threshold
   static const double budgetWarningPercent = 80.0;
+
+  // Wallet Types
+  static const List<String> walletTypes = ['Tiền mặt', 'Ngân hàng', 'Ví điện tử', 'Tiết kiệm'];
+
+  // Wallet Emojis
+  static const List<String> walletEmojis = ['💳', '🏦', '📱', '🐷', '💰', '💼', '🏠', '🎯', '🔒', '✈️', '🛒', '🎁'];
+
+  // Category Emojis (key → emoji)
+  static const Map<String, String> categoryEmojis = {
+    'food': '🍔', 'transport': '🚗', 'shopping': '🛍️', 'entertainment': '🎬',
+    'health': '💊', 'education': '📚', 'bills': '📄', 'travel': '✈️',
+    'gift': '🎁', 'salary': '💰', 'freelance': '💻', 'investment': '📈',
+    'refund': '🔄', 'bonus': '🎉', 'other': '📦',
+  };
 }

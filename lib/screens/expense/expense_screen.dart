@@ -44,14 +44,13 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     final catProvider = context.watch<CategoryProvider>();
 
     final categories = catProvider.categories;
-    final transactions = transProvider.transactions;
 
     final selectedType = _selectedTab == 0
         ? model.TransactionType.expense
         : model.TransactionType.income;
 
-    final typeTransactions =
-        transactions.where((t) => t.type == selectedType).toList();
+    // Dùng provider methods thay vì tính inline
+    final typeTransactions = transProvider.transactionsByType(selectedType);
     final filteredList = selectedCategoryId == null
         ? typeTransactions
         : typeTransactions.where((t) => t.categoryId == selectedCategoryId).toList();
@@ -59,31 +58,15 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
     final typeCategories =
         categories.where((c) => c.type == selectedType).toList();
 
-    // Calendar data: map date -> total amount for selected type
-    final Map<String, int> dailyTotals = {};
-    for (final t in typeTransactions) {
-      final key =
-          '${t.date.year}-${t.date.month.toString().padLeft(2, '0')}-${t.date.day.toString().padLeft(2, '0')}';
-      dailyTotals[key] = (dailyTotals[key] ?? 0) + t.amount;
-    }
-    final maxDaily = dailyTotals.values.fold(0, (a, b) => a > b ? a : b);
+    final dailyTotalsMap = transProvider.dailyTotals(selectedType);
+    final maxDaily = dailyTotalsMap.values.fold(0, (a, b) => a > b ? a : b);
 
-    // Category breakdown for selected type
-    final Map<String, int> categoryTotals = {};
-    for (final t in typeTransactions) {
-      final catId = t.categoryId ?? 'other';
-      categoryTotals[catId] = (categoryTotals[catId] ?? 0) + t.amount;
-    }
-    final totalForType = categoryTotals.values.fold(0, (a, b) => a + b);
+    final categoryTotalsMap = transProvider.categoryTotals(selectedType);
+    final totalForType = categoryTotalsMap.values.fold(0, (a, b) => a + b);
 
-    // Transactions for selected day
     final dayTransactions = _selectedDay == null
         ? <Transaction>[]
-        : typeTransactions.where((t) {
-            return t.date.year == _selectedDay!.year &&
-                t.date.month == _selectedDay!.month &&
-                t.date.day == _selectedDay!.day;
-          }).toList();
+        : transProvider.transactionsForDay(_selectedDay!, selectedType);
 
     final accentColor =
         _selectedTab == 0 ? const Color(0xffEF4444) : const Color(0xff16A34A);
@@ -218,7 +201,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     const SizedBox(height: 6),
 
                     /// Calendar grid
-                    _buildCalendarGrid(dailyTotals, maxDaily, accentColor, accentBg),
+                    _buildCalendarGrid(dailyTotalsMap, maxDaily, accentColor, accentBg),
                   ],
                 ),
               ),
@@ -262,7 +245,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
-                                      t.note ?? t.category?.name ?? 'Giao dịch',
+                                      t.displayTitle,
                                       style: const TextStyle(fontSize: 13),
                                     ),
                                   ),
@@ -322,7 +305,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                     const SizedBox(height: 12),
-                    _buildBarChart(typeTransactions, accentColor),
+                    _buildBarChart(selectedType, accentColor),
                   ],
                 ),
               ),
@@ -336,7 +319,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               ),
               const SizedBox(height: 10),
 
-              if (categoryTotals.isEmpty)
+              if (categoryTotalsMap.isEmpty)
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -354,7 +337,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                 )
               else
                 ...(() {
-                  final entries = categoryTotals.entries.toList()
+                  final entries = categoryTotalsMap.entries.toList()
                     ..sort((a, b) => b.value.compareTo(a.value));
                   return entries.map((entry) {
                   final cat = typeCategories.firstWhere(
@@ -555,21 +538,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
   }
 
   /// ================= BAR CHART (6 tháng) =================
-  Widget _buildBarChart(List<Transaction> typeTransactions, Color accentColor) {
-    // Calculate last 6 months totals
+  Widget _buildBarChart(model.TransactionType type, Color accentColor) {
     final now = DateTime.now();
-    final Map<String, int> monthlyTotals = {};
-    for (int i = 5; i >= 0; i--) {
-      final m = DateTime(now.year, now.month - i, 1);
-      final key = '${m.year}-${m.month.toString().padLeft(2, '0')}';
-      monthlyTotals[key] = 0;
-    }
-    for (final t in typeTransactions) {
-      final key = '${t.date.year}-${t.date.month.toString().padLeft(2, '0')}';
-      if (monthlyTotals.containsKey(key)) {
-        monthlyTotals[key] = monthlyTotals[key]! + t.amount;
-      }
-    }
+    final monthlyTotals = context.read<TransactionProvider>().monthlyTotals(type);
     final maxVal = monthlyTotals.values.fold(0, (a, b) => a > b ? a : b);
 
     return SizedBox(

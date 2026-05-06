@@ -6,10 +6,14 @@ import '../../providers/auth_provider.dart';
 import '../../providers/wallet_provider.dart';
 import '../../providers/goal_provider.dart';
 import '../../providers/ai_provider.dart';
+import '../../providers/settings_provider.dart';
 
 import '../ai/ai_chat_screen.dart';
 import '../wallet/wallet_screen.dart';
 import '../goal/goals_screen.dart';
+import '../bank/link_bank_screen.dart';
+import '../friend/friends_screen.dart';
+import '../fund/shared_funds_screen.dart';
 
 class SettingScreen extends StatefulWidget {
   const SettingScreen({super.key});
@@ -19,9 +23,6 @@ class SettingScreen extends StatefulWidget {
 }
 
 class _SettingScreenState extends State<SettingScreen> {
-  bool _notificationEnabled = true;
-  bool _darkModeEnabled = false;
-
   @override
   void initState() {
     super.initState();
@@ -37,11 +38,14 @@ class _SettingScreenState extends State<SettingScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final settingsProvider = context.watch<SettingsProvider>();
     final profile = authProvider.profile;
     final userEmail = Supabase.instance.client.auth.currentUser?.email ?? 'Đang tải...';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: settingsProvider.darkModeEnabled
+          ? const Color(0xFF1A1A2E)
+          : const Color(0xFFF5F7FA),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.only(bottom: 100),
@@ -84,6 +88,32 @@ class _SettingScreenState extends State<SettingScreen> {
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const GoalsScreen())),
                 ),
+                _buildDivider(),
+                _buildSettingTile(
+                  icon: Icons.account_balance_outlined,
+                  title: 'Liên kết ngân hàng',
+                  subtitle: 'Kết nối tài khoản ngân hàng qua SePay',
+                  trailing: _buildBadge('Mới'),
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const LinkBankScreen())),
+                ),
+                _buildDivider(),
+                _buildSettingTile(
+                  icon: Icons.people_outline,
+                  title: 'Bạn bè',
+                  subtitle: 'Quản lý danh sách bạn bè',
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const FriendsScreen())),
+                ),
+                _buildDivider(),
+                _buildSettingTile(
+                  icon: Icons.savings_outlined,
+                  title: 'Quỹ chung',
+                  subtitle: 'Góp quỹ cùng bạn bè',
+                  trailing: _buildBadge('Mới'),
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const SharedFundsScreen())),
+                ),
               ]),
 
               _buildSectionTitle('TIỆN ÍCH'),
@@ -100,18 +130,19 @@ class _SettingScreenState extends State<SettingScreen> {
                 _buildSwitchTile(
                   icon: Icons.notifications_outlined,
                   title: 'Thông báo',
-                  subtitle: _notificationEnabled ? 'Đang bật' : 'Đang tắt',
-                  value: _notificationEnabled,
+                  subtitle: settingsProvider.notificationEnabled ? 'Đang bật' : 'Đang tắt',
+                  value: settingsProvider.notificationEnabled,
                   onChanged: (val) =>
-                      setState(() => _notificationEnabled = val),
+                      context.read<SettingsProvider>().setNotificationEnabled(val),
                 ),
                 _buildDivider(),
                 _buildSwitchTile(
                   icon: Icons.dark_mode_outlined,
                   title: 'Chế độ tối',
-                  subtitle: _darkModeEnabled ? 'Đang bật' : 'Đang tắt',
-                  value: _darkModeEnabled,
-                  onChanged: (val) => setState(() => _darkModeEnabled = val),
+                  subtitle: settingsProvider.darkModeEnabled ? 'Đang bật' : 'Đang tắt',
+                  value: settingsProvider.darkModeEnabled,
+                  onChanged: (val) =>
+                      context.read<SettingsProvider>().setDarkModeEnabled(val),
                 ),
                 _buildDivider(),
                 _buildSettingTile(
@@ -410,11 +441,9 @@ class _SettingScreenState extends State<SettingScreen> {
               onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
           TextButton(
               onPressed: () async {
+                Navigator.pop(context); // đóng dialog trước
                 await context.read<AuthProvider>().signOut();
-                if (mounted) {
-                  Navigator.pop(context);
-                  Navigator.pushReplacementNamed(context, '/login');
-                }
+                // Auth listener sẽ tự chuyển về login
               },
               child: const Text('Đăng xuất',
                   style: TextStyle(color: Color(0xFFEF4444)))),
@@ -423,60 +452,6 @@ class _SettingScreenState extends State<SettingScreen> {
     );
   }
 }
-
-  // ================= COMMON WIDGETS =================
-  Widget _buildSectionTitle(String title) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-    child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey, letterSpacing: 1)),
-  );
-
-  Widget _buildSettingsGroup(List<Widget> children) => Container(
-    margin: const EdgeInsets.symmetric(horizontal: 20),
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-    child: Column(children: children),
-  );
-
-  Widget _buildSettingTile({required IconData icon, required String title, required String subtitle, Widget? trailing, required VoidCallback onTap}) {
-    return ListTile(
-      leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: const Color(0xFF3B82F6), size: 20)),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      trailing: trailing ?? const Icon(Icons.chevron_right, color: Colors.grey),
-      onTap: onTap,
-    );
-  }
-
-  Widget _buildSwitchTile({required IconData icon, required String title, required String subtitle, required bool value, required ValueChanged<bool> onChanged}) {
-    return ListTile(
-      leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: const Color(0xFF3B82F6), size: 20)),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      trailing: Switch(value: value, onChanged: onChanged, activeColor: const Color(0xFF3B82F6)),
-    );
-  }
-
-  Widget _buildDivider() => const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Divider(height: 1));
-
-  Widget _buildBadge(String text) => Row(mainAxisSize: MainAxisSize.min, children: [
-    Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: const Color(0xFF3B82F6), borderRadius: BorderRadius.circular(10)), child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600))),
-    const SizedBox(width: 4),
-    const Icon(Icons.chevron_right, color: Colors.grey),
-  ]);
-
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Đăng xuất'),
-        content: const Text('Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
-          TextButton(onPressed: () { Navigator.pop(context); }, child: const Text('Đăng xuất', style: TextStyle(color: Color(0xFFEF4444)))),
-        ],
-      ),
-    );
-  }
 
 
 // ============================================================

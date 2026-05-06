@@ -1,0 +1,131 @@
+@startuml AI Chat Flow
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam ActivityBackgroundColor #E3F2FD
+skinparam ActivityBorderColor #1565C0
+skinparam ActivityDiamondBackgroundColor #FFF3E0
+skinparam ActivityDiamondBorderColor #E65100
+skinparam ArrowColor #1565C0
+skinparam NoteBackgroundColor #F3E5F5
+skinparam NoteBorderColor #6A1B9A
+
+title Fiscal AI - Hoạt động Chat & Insights
+
+|User|
+start
+:Click mở AI Chat Screen;
+
+|AIChatScreen|
+:loadChatHistory(userId);
+note right: Supabase DB\nKhông gọi Gemini
+
+if (Có history trong DB?) then (Có)
+  :Hiển thị chat cũ;
+else (Không)
+  :Hiển thị welcome message;
+endif
+
+|User|
+:Nhập tin nhắn → gửi;
+
+|AiProvider|
+:addUserMessage() → hiển thị ngay;
+:set isSending = true;
+
+|AiService|
+:_waitForRateLimit();
+note right: Đợi 10s giữa các API call\nChống gọi liên tục
+
+:sendChatMessage(userId, message,\nfinancialContext?);
+note right
+  Financial context chỉ gửi
+  ở tin nhắn đầu tiên
+  (_chatHistory.isEmpty)
+end note
+
+:POST → Gemini REST API;
+note right
+  URL: v1beta/models/gemini-2.0-flash
+  :generateContent?key=xxx
+  
+  Body: {
+    contents: chatHistory,
+    systemInstruction,
+    generationConfig
+  }
+end note
+
+|Gemini API|
+if (Response?) then (200 OK)
+  :Trả về AI reply;
+  |AiService|
+  :Thêm AI reply vào _chatHistory;
+  :_saveChatHistory() → Supabase;
+  note right: Non-blocking\nFail không ảnh hưởng
+  :Return aiReply;
+else (429 Rate Limit)
+  |AiService|
+  if (attempt < 2?) then (Retry)
+    :Đợi 10s → retry;
+    note right: Tối đa 2 lần retry
+  else (Fail)
+    :Throw Exception;
+  endif
+else (Lỗi khác)
+  |AiService|
+  :Throw Exception;
+endif
+
+|AiProvider|
+if (Thành công?) then (Có)
+  :Thêm AI message vào chatMessages;
+  :set isSending = false;
+else (Lỗi)
+  :Thêm error message vào chat;
+  note right: "⚠️ Lỗi: ..."
+  :set isSending = false;
+endif
+
+|AIChatScreen|
+:Hiển thị tin nhắn AI / lỗi;
+notifyListeners();
+
+|User|
+:Tiếp tục chat (multi-turn);
+note right: _chatHistory giữ context\ncho các tin nhắn sau
+
+---
+
+== Insights Flow ==
+
+|HomeScreen|
+:_initData();
+:loadWallets() + loadTransactions();
+:_buildAndSetFinancialContext();
+
+|AiProvider|
+:setFinancialContext(context);
+:loadInsights(userId);
+
+|AiService|
+:getSavedInsights(userId);
+note right: Đọc từ Supabase trước\nKHÔNG gọi Gemini
+
+if (Có insight trong DB?) then (Có)
+  :Return insights từ DB;
+else (Không)
+  :getInsights() → gọi Gemini;
+  note right: Chỉ gọi khi DB trống
+  :_callGemini(prompt);
+  :Parse JSON response;
+  :_saveInsight() → Supabase;
+endif
+
+|AiProvider|
+:Cập nhật _insights;
+notifyListeners();
+
+|HomeScreen|
+:Hiển thị insight card;
+
+@enduml

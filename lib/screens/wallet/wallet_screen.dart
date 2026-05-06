@@ -10,7 +10,9 @@ import '../../models/wallet.dart';
 import '../../models/transaction.dart';
 import '../../models/category.dart' as model;
 import '../../utils/formatters.dart';
+import '../../utils/constants.dart';
 import '../../utils/snackbar.dart';
+import '../bank/link_bank_screen.dart';
 
 class WalletScreen extends StatefulWidget {
   const WalletScreen({super.key});
@@ -214,11 +216,11 @@ class _WalletScreenState extends State<WalletScreen> {
                       final isIncome = t.type == model.TransactionType.income;
                       return _transactionItem(
                         transaction: t,
-                        title: t.note ?? t.category?.name ?? "Giao dịch",
+                        title: t.displayTitle,
                         date: Formatters.dateShort(t.date),
                         amount:
                             "${isIncome ? '+' : '-'}${Formatters.currency(t.amount.toDouble())}",
-                        emoji: _getCategoryEmoji(t.category?.icon),
+                        emoji: Formatters.categoryEmoji(t.category?.icon),
                         isIncome: isIncome,
                       );
                     }),
@@ -231,32 +233,6 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  IconData _getWalletIconFromName(String name) {
-    final lowerName = name.toLowerCase();
-    if (lowerName.contains('ngân hàng') || lowerName.contains('bank')) {
-      return Iconsax.bank;
-    } else if (lowerName.contains('momo') || lowerName.contains('ví')) {
-      return Iconsax.card;
-    } else if (lowerName.contains('tiết kiệm')) {
-      return Iconsax.money;
-    }
-    return Iconsax.wallet;
-  }
-
-  /// Icon emoji cho danh mục giao dịch
-  static const _categoryEmojis = {
-    'food': '🍔', 'transport': '🚗', 'shopping': '🛍️', 'entertainment': '🎬',
-    'health': '💊', 'education': '📚', 'bills': '📄', 'travel': '✈️',
-    'gift': '🎁', 'salary': '💰', 'freelance': '💻', 'investment': '📈',
-    'refund': '🔄', 'bonus': '🎉', 'other': '📦',
-  };
-
-  String _getCategoryEmoji(String? icon) {
-    if (icon == null || icon.isEmpty) return '📦';
-    // Nếu icon đã là emoji (1-2 ký tự), trả về luôn
-    if (icon.length <= 2 && icon.runes.first > 0x1F000) return icon;
-    return _categoryEmojis[icon.toLowerCase()] ?? icon;
-  }
 
   /// ================= HEADER BUTTON =================
   Widget _headerButton(String text, IconData icon, VoidCallback onTap) {
@@ -372,13 +348,8 @@ class _WalletScreenState extends State<WalletScreen> {
 
   /// ================= TRANSFER BOTTOM SHEET =================
   void _showTransferSheet(BuildContext context, List<Wallet> wallets) {
-    if (wallets.length < 2) {
-      AppSnackBar.warning(context, 'Bạn cần ít nhất 2 ví để thực hiện chuyển tiền');
-      return;
-    }
-
-    Wallet? fromWallet = wallets.first;
-    Wallet? toWallet = wallets[1];
+    Wallet? fromWallet = wallets.firstOrNull;
+    Wallet? toWallet = wallets.length > 1 ? wallets[1] : null;
     final amountController = TextEditingController();
 
     showModalBottomSheet(
@@ -448,17 +419,15 @@ class _WalletScreenState extends State<WalletScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       final amount = int.tryParse(
-                          amountController.text.replaceAll(',', '').replaceAll('.', ''));
-                      if (amount == null || amount <= 0) {
-                        AppSnackBar.warning(context, 'Vui lòng nhập số tiền hợp lệ');
-                        return;
-                      }
-                      if (fromWallet?.id == toWallet?.id) {
-                        AppSnackBar.warning(context, 'Vui lòng chọn tài khoản khác nhau');
-                        return;
-                      }
-                      if ((fromWallet?.balance ?? 0) < amount) {
-                        AppSnackBar.error(context, 'Số dư không đủ');
+                          amountController.text.replaceAll(',', '').replaceAll('.', '')) ??
+                          0;
+
+                      // Dùng provider validation
+                      final error = context.read<WalletProvider>().validateTransfer(
+                        fromWallet?.id, toWallet?.id, amount,
+                      );
+                      if (error != null) {
+                        AppSnackBar.warning(context, error);
                         return;
                       }
 
@@ -593,13 +562,11 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   /// ================= EDIT WALLET BOTTOM SHEET =================
-  static const _walletEmojis = ['💳', '🏦', '📱', '🐷', '💰', '💼', '🏠', '🎯', '🔒', '✈️', '🛒', '🎁'];
 
   void _showEditWalletSheet(BuildContext context, Wallet w) {
     final nameController = TextEditingController(text: w.name);
     String selectedType = w.type;
     String selectedEmoji = w.icon;
-    final types = ['Tiền mặt', 'Ngân hàng', 'Ví điện tử', 'Tiết kiệm'];
 
     showModalBottomSheet(
       context: context,
@@ -641,10 +608,10 @@ class _WalletScreenState extends State<WalletScreen> {
                   height: 44,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemCount: _walletEmojis.length,
+                    itemCount: AppConstants.walletEmojis.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (_, i) {
-                      final em = _walletEmojis[i];
+                      final em = AppConstants.walletEmojis[i];
                       final isSelected = em == selectedEmoji;
                       return GestureDetector(
                         onTap: () => setModalState(() => selectedEmoji = em),
@@ -680,7 +647,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 8,
-                  children: types.map((t) {
+                  children: AppConstants.walletTypes.map((t) {
                     final selected = t == selectedType;
                     return ChoiceChip(
                       label: Text(t),
@@ -775,21 +742,13 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  String _getWalletEmoji(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('ngân hàng') || lower.contains('bank')) return '🏦';
-    if (lower.contains('momo') || lower.contains('ví')) return '📱';
-    if (lower.contains('tiết kiệm')) return '🐷';
-    return '💳';
-  }
 
   /// ================= ADD WALLET BOTTOM SHEET =================
   void _showAddWalletSheet(BuildContext context) {
     final nameController = TextEditingController();
     final amountController = TextEditingController();
-    String selectedType = 'Tiền mặt';
-    String selectedEmoji = '💳';
-    final types = ['Tiền mặt', 'Ngân hàng', 'Ví điện tử', 'Tiết kiệm'];
+    String selectedType = AppConstants.walletTypes.first;
+    String selectedEmoji = AppConstants.walletEmojis.first;
 
     showModalBottomSheet(
       context: context,
@@ -834,10 +793,10 @@ class _WalletScreenState extends State<WalletScreen> {
                   height: 44,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemCount: _walletEmojis.length,
+                    itemCount: AppConstants.walletEmojis.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (_, i) {
-                      final em = _walletEmojis[i];
+                      final em = AppConstants.walletEmojis[i];
                       final isSelected = em == selectedEmoji;
                       return GestureDetector(
                         onTap: () => setModalState(() => selectedEmoji = em),
@@ -875,7 +834,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 8,
-                  children: types.map((t) {
+                  children: AppConstants.walletTypes.map((t) {
                     final selected = t == selectedType;
                     return ChoiceChip(
                       label: Text(t),
@@ -914,7 +873,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       }
 
                       try {
-                        await context.read<WalletProvider>().addWallet(
+                        final newWallet = await context.read<WalletProvider>().addWallet(
                               name: name,
                               type: selectedType,
                               balance: amount,
@@ -924,6 +883,12 @@ class _WalletScreenState extends State<WalletScreen> {
                         if (mounted) {
                           Navigator.pop(ctx);
                           AppSnackBar.success(context, 'Đã thêm ví "$name"');
+
+                          /// Khuyến khích liên kết ngân hàng nếu là ví ngân hàng/điện tử
+                          if (selectedType == 'Ngân hàng' || selectedType == 'Ví điện tử') {
+                            await Future.delayed(const Duration(milliseconds: 300));
+                            if (mounted) _promptLinkBank(newWallet.id, name);
+                          }
                         }
                       } catch (e) {
                         if (mounted) {
@@ -945,6 +910,58 @@ class _WalletScreenState extends State<WalletScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  /// ================= PROMPT LINK BANK =================
+  void _promptLinkBank(String walletId, String walletName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xff2F80ED).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.account_balance, color: Color(0xff2F80ED)),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(child: Text('Liên kết ngân hàng', style: TextStyle(fontSize: 16))),
+          ],
+        ),
+        content: Text(
+          'Liên kết ví "$walletName" với tài khoản ngân hàng để tự động đồng bộ số dư và giao dịch!',
+          style: const TextStyle(fontSize: 14, color: Colors.black87),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Để sau', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.link, size: 18),
+            label: const Text('Liên kết ngay'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xff2F80ED),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => LinkBankScreen(preselectedWalletId: walletId),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -1116,21 +1133,14 @@ class _WalletScreenState extends State<WalletScreen> {
                       final amount = int.tryParse(
                               amountCtrl.text.replaceAll(',', '').replaceAll('.', '')) ??
                           0;
-                      
-                      final updatedTransaction = Transaction(
-                        id: t.id,
-                        userId: t.userId,
-                        walletId: t.walletId,
-                        categoryId: t.categoryId,
+
+                      // Dùng provider method thay vì tạo Transaction object
+                      await context.read<TransactionProvider>().updateTransactionFields(
+                        t.id,
                         type: selectedType,
                         amount: amount,
                         note: titleCtrl.text.trim(),
-                        date: t.date,
-                        createdAt: t.createdAt,
-                        updatedAt: DateTime.now(),
                       );
-
-                      await context.read<TransactionProvider>().updateTransaction(updatedTransaction);
                       
                       if (mounted) {
                         context.read<WalletProvider>().loadWallets();

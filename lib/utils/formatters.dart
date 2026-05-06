@@ -1,4 +1,5 @@
 import 'package:intl/intl.dart';
+import 'constants.dart';
 
 class Formatters {
   // Currency
@@ -75,5 +76,21 @@ class Formatters {
       case 'cancelled': return 'Đã hủy';
       default: return status;
     }
+  }
+
+  // Category emoji from icon string
+  static String categoryEmoji(String? icon) {
+    if (icon == null || icon.isEmpty) return '📦';
+    if (icon.length <= 2 && icon.runes.first > 0x1F000) return icon;
+    return AppConstants.categoryEmojis[icon.toLowerCase()] ?? icon;
+  }
+
+  // Wallet emoji from wallet name
+  static String walletEmoji(String name) {
+    final lower = name.toLowerCase();
+    if (lower.contains('ngân hàng') || lower.contains('bank')) return '🏦';
+    if (lower.contains('momo') || lower.contains('ví')) return '📱';
+    if (lower.contains('tiết kiệm')) return '🐷';
+    return '💳';
   }
 }

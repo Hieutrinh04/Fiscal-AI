@@ -1,0 +1,296 @@
+@startuml Fiscal AI - Activity Flow
+!theme plain
+skinparam backgroundColor #FAFAFA
+skinparam ActivityBackgroundColor #E3F2FD
+skinparam ActivityBorderColor #1565C0
+skinparam ActivityDiamondBackgroundColor #FFF3E0
+skinparam ActivityDiamondBorderColor #E65100
+skinparam ArrowColor #37474F
+skinparam NoteBackgroundColor #F3E5F5
+skinparam NoteBorderColor #6A1B9A
+skinparam PartitionBackgroundColor #F1F8E9
+
+title Fiscal AI - Luồng hoạt động toàn bộ đồ án
+
+|App Start|
+start
+:Khởi tạo Supabase;
+:Đăng ký 9 Providers;
+note right
+  SettingsProvider (loadSettings)
+  AuthProvider
+  WalletProvider
+  NotificationProvider
+  TransactionProvider
+  CategoryProvider
+  BudgetProvider
+  GoalProvider
+  AiProvider
+end note
+
+if (Có session Supabase?) then (Đã đăng nhập)
+  :Hiển thị MainScreen;
+else (Chưa đăng nhập)
+  :Hiển thị LoginScreen;
+endif
+
+== XÁC THỰC ==
+
+|User - Login|
+:Nhập email + password;
+:AuthProvider.signIn();
+:AuthService → Supabase Auth;
+if (Đăng nhập thành công?) then (Có)
+  :Load profile từ Supabase;
+  :Chuyển sang MainScreen;
+else (Không)
+  :Hiển thị lỗi;
+  :Ở lại LoginScreen;
+endif
+
+|User - Register|
+:Nhập email + password + tên;
+:AuthProvider.signUp();
+:AuthService → Supabase Auth;
+:Create profile trong DB;
+if (Đăng ký thành công?) then (Có)
+  :Chuyển sang MainScreen;
+else (Không)
+  :Hiển thị lỗi;
+endif
+
+== MÀN HÌNH CHÍNH ==
+
+|HomeScreen|
+:_initData();
+:loadWallets() → WalletService → Supabase;
+:loadTransactions() → TransactionService → Supabase;
+:loadNotifications() → NotificationService → Supabase;
+:loadProfile() → AuthService → Supabase;
+:_buildAndSetFinancialContext();
+note right
+  Tổng số dư + thu nhập + chi tiêu
+  + danh sách ví + chi tiêu gần đây
+end note
+:setFinancialContext() → AiProvider;
+:loadInsights(userId);
+
+|AiService|
+:getSavedInsights() → Supabase;
+if (Có insight trong DB?) then (Có)
+  :Trả về từ DB (không gọi Gemini);
+else (Không)
+  :getInsights() → gọi Gemini API;
+  :Lưu insight vào DB;
+endif
+
+|HomeScreen|
+:Hiển thị header (avatar, tên, số dư);
+:Hiển thị danh sách giao dịch gần đây;
+:Hiển thị AI insight card;
+
+== QUẢN LÝ VÍ ==
+
+|User - Wallet|
+:Chọn tab "Ví tiền";
+
+|WalletScreen|
+:Hiển thị danh sách ví;
+:Hiển thị tổng số dư;
+
+|User|
+if (Thao tác?) then (Thêm ví)
+  :Nhập tên ví + số dư ban đầu;
+  :WalletProvider.addWallet();
+  :WalletService → insert Supabase;
+else (Chuyển tiền)
+  :Chọn ví nguồn + ví đích + số tiền;
+  :WalletService.transfer();
+  :Kiểm tra số dư đủ?;
+  :Cập nhật balance cả 2 ví;
+else (Xoá ví)
+  :WalletProvider.deleteWallet();
+  :WalletService → delete Supabase;
+endif
+
+:WalletProvider.loadWallets() → refresh UI;
+
+== THÊM GIAO DỊCH ==
+
+|User|
+:Nhấn FAB (+);
+
+|AddTransactionScreen|
+:Load danh mục từ CategoryProvider;
+:Load danh sách ví từ WalletProvider;
+
+|User|
+:Chọn loại (thu nhập / chi tiêu);
+:Chọn danh mục;
+:Nhập số tiền + ghi chú;
+:Chọn ví + ngày;
+:Nhấn Lưu;
+
+|TransactionProvider|
+:addTransaction();
+:TransactionService → insert Supabase;
+:Cập nhật số dư ví (WalletProvider);
+if (Bật thông báo?) then (Có)
+  :NotificationProvider.addNotification();
+  :NotificationService → insert Supabase;
+else (Không)
+  :Bỏ qua thông báo;
+endif
+:loadTransactions() → refresh UI;
+
+== THỐNG KÊ ==
+
+|User|
+:Chọn tab "Thống kê";
+
+|StatisticsScreen|
+:Load giao dịch theo khoảng ngày;
+:Load budgets từ BudgetProvider → BudgetService;
+
+:Hiển thị biểu đồ chi tiêu theo danh mục;
+:Hiển thị biểu đồ thu nhập vs chi tiêu;
+:Hiển thị ngân sách tháng;
+
+|User|
+if (Thao tác?) then (Tạo budget)
+  :Nhập hạn mức + danh mục + tháng;
+  :BudgetProvider.createBudget();
+  :BudgetService → insert Supabase;
+else (Xem chi tiết)
+  :Hiển thị breakdown theo danh mục;
+endif
+
+== MỤC TIÊU TIẾT KIỆM ==
+
+|User|
+:Mở GoalsScreen;
+
+|GoalsScreen|
+:GoalProvider.getGoals();
+:GoalService → Supabase;
+:Hiển thị danh sách mục tiêu + tiến độ;
+
+|User|
+if (Thao tác?) then (Tạo mục tiêu)
+  :Nhập tên + số tiền mục tiêu + deadline;
+  :GoalProvider.createGoal();
+  :GoalService → insert Supabase;
+else (Cập nhật)
+  :Cập nhật số tiền đã tiết kiệm;
+  :GoalProvider.updateGoal();
+else (Xoá)
+  :GoalProvider.deleteGoal();
+endif
+
+== AI CHAT ==
+
+|User|
+:Nhấn vào AI icon / insight card;
+
+|AIChatScreen|
+:loadChatHistory(userId);
+:AiService.getChatHistory() → Supabase;
+if (Có history?) then (Có)
+  :Hiển thị chat cũ;
+else (Không)
+  :Hiển thị welcome message;
+endif
+
+|User|
+:Nhập tin nhắn → gửi;
+
+|AiProvider|
+:Thêm user message vào chatMessages;
+:set isSending = true;
+:notifyListeners();
+
+|AiService|
+:_waitForRateLimit() (đợi 10s nếu gọi liên tục);
+:sendChatMessage(userId, message, financialContext?);
+note right
+  Financial context chỉ gửi
+  ở tin nhắn đầu tiên
+end note
+
+:POST → Gemini REST API;
+note right
+  v1beta/models/gemini-2.0-flash
+  :generateContent?key=xxx
+  Body: contents + systemInstruction
+end note
+
+|Gemini API|
+if (Response code?) then (200)
+  :Trả về AI reply text;
+  |AiService|
+  :Thêm reply vào _chatHistory;
+  :_saveChatHistory() → Supabase (non-blocking);
+  :Return aiReply;
+else (429 Rate Limit)
+  |AiService|
+  if (attempt < 2?) then (Retry)
+    :Đợi 10s → gọi lại;
+  else (Fail)
+    :Throw Exception;
+  endif
+else (Lỗi khác)
+  :Throw Exception;
+endif
+
+|AiProvider|
+if (Thành công?) then (Có)
+  :Thêm AI message vào chatMessages;
+else (Lỗi)
+  :Thêm error message: "Lỗi: ...";
+endif
+:set isSending = false;
+:notifyListeners();
+
+|AIChatScreen|
+:Hiển thị tin nhắn AI / lỗi;
+
+|User|
+:Tiếp tục chat (multi-turn);
+note right
+  _chatHistory giữ context
+  cho các tin nhắn sau
+end note
+
+== CÀI ĐẶT ==
+
+|User|
+:Chọn tab "Cài đặt";
+
+|SettingScreen|
+:Hiển thị toggle thông báo;
+:Hiển thị toggle dark mode;
+:Hiển thị nút đăng xuất;
+
+|User|
+if (Thao tác?) then (Toggle Dark Mode)
+  :SettingsProvider.setDarkModeEnabled();
+  :Lưu vào SharedPreferences;
+  :MaterialApp rebuild với dark theme;
+else (Toggle Thông báo)
+  :SettingsProvider.setNotificationEnabled();
+  :Lưu vào SharedPreferences;
+  :TransactionProvider kiểm tra trước khi gửi;
+else (Đăng xuất)
+  :AuthProvider.signOut();
+  :AuthService → Supabase Auth;
+  :Xoá session;
+  :Chuyển về LoginScreen;
+else (Cập nhật Profile)
+  :AuthProvider.updateProfile();
+  :AuthService → update Supabase;
+endif
+
+== KẾT THÚC ==
+stop
+
+@enduml
