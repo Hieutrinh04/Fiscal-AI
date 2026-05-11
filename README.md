@@ -194,7 +194,7 @@ flutter run -d chrome
 
 ## 📱 Screenshots
 
-> *(Thêm ảnh chụp màn hình ứng dụng vào đây)*
+
 
 ---
 
