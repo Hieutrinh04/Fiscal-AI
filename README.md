@@ -51,7 +51,7 @@
 - **Supabase Edge Functions** (Deno/TypeScript) – Webhook xử lý giao dịch ngân hàng
 
 ### AI
-- **[ChatGPT](https://ai.google.dev)** – Phân tích tài chính và chat AI
+- **[GEMINI](https://ai.google.dev)** – Phân tích tài chính và chat AI
 
 ### Thanh toán
 - **[SePay](https://sepay.vn)** – Cổng kết nối ngân hàng MSB, đồng bộ giao dịch qua VA/QR
