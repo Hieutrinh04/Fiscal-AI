@@ -6,7 +6,7 @@
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter)](https://flutter.dev)
 [![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?logo=supabase)](https://supabase.com)
-[![Gemini AI](https://img.shields.io/badge/Gemini-1.5_Flash-4285F4?logo=google)](https://ai.google.dev)
+[![ChatGPT AI](https://img.shields.io/badge)](https://ai.google.dev)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 </div>
@@ -51,7 +51,7 @@
 - **Supabase Edge Functions** (Deno/TypeScript) – Webhook xử lý giao dịch ngân hàng
 
 ### AI
-- **[Google Gemini 1.5 Flash](https://ai.google.dev)** – Phân tích tài chính và chat AI
+- **[ChatGPT](https://ai.google.dev)** – Phân tích tài chính và chat AI
 
 ### Thanh toán
 - **[SePay](https://sepay.vn)** – Cổng kết nối ngân hàng MSB, đồng bộ giao dịch qua VA/QR
