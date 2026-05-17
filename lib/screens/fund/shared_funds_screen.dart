@@ -7,6 +7,7 @@ import '../../providers/shared_fund_provider.dart';
 import '../../utils/formatters.dart';
 import 'create_fund_screen.dart';
 import 'fund_detail_screen.dart';
+import '../../l10n/app_localizations.dart';
 
 class SharedFundsScreen extends StatefulWidget {
   const SharedFundsScreen({super.key});
@@ -28,7 +29,7 @@ class _SharedFundsScreenState extends State<SharedFundsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Quỹ chung'),
+        title: Text(context.l10n.sharedFund),
         elevation: 0,
         actions: [
           IconButton(
@@ -59,14 +60,14 @@ class _SharedFundsScreenState extends State<SharedFundsScreen> {
         children: [
           const Icon(Iconsax.people, size: 64, color: Colors.grey),
           const SizedBox(height: 12),
-          const Text(
-            'Chưa có quỹ chung nào',
-            style: TextStyle(color: Colors.grey, fontSize: 16),
+          Text(
+            context.l10n.noFundsYet,
+            style: const TextStyle(color: Colors.grey, fontSize: 16),
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             icon: const Icon(Iconsax.add),
-            label: const Text('Tạo quỹ mới'),
+            label: Text(context.l10n.createFund),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xff2F80ED),
               shape: RoundedRectangleBorder(
@@ -118,7 +119,7 @@ class _SharedFundsScreenState extends State<SharedFundsScreen> {
                           ),
                         ),
                         Text(
-                          '${fund.memberCount} thành viên',
+                          '${fund.memberCount} ${context.l10n.members}',
                           style: const TextStyle(color: Colors.grey, fontSize: 12),
                         ),
                       ],
@@ -133,7 +134,7 @@ class _SharedFundsScreenState extends State<SharedFundsScreen> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      fund.isCompleted ? 'Hoàn thành' : 'Đang góp',
+                      fund.isCompleted ? context.l10n.fundCompleted : context.l10n.contribute,
                       style: TextStyle(
                         color: fund.isCompleted ? Colors.green : Colors.orange,
                         fontSize: 12,
@@ -149,10 +150,14 @@ class _SharedFundsScreenState extends State<SharedFundsScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: LinearProgressIndicator(
-                  value: fund.progress,
-                  backgroundColor: Colors.grey[200],
+                  value: fund.currentAmount > fund.targetAmount ? 1.0 : fund.progress,
+                  backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey[700] : Colors.grey[200],
                   valueColor: AlwaysStoppedAnimation(
-                    fund.isCompleted ? Colors.green : const Color(0xff2F80ED),
+                    fund.currentAmount > fund.targetAmount
+                        ? const Color(0xffF59E0B)
+                        : fund.isCompleted
+                            ? Colors.green
+                            : const Color(0xff2F80ED),
                   ),
                   minHeight: 8,
                 ),
@@ -165,17 +170,36 @@ class _SharedFundsScreenState extends State<SharedFundsScreen> {
                 children: [
                   Text(
                     Formatters.currency(fund.currentAmount),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Color(0xff2F80ED),
+                      color: fund.currentAmount > fund.targetAmount
+                          ? const Color(0xffF59E0B)
+                          : const Color(0xff2F80ED),
                     ),
                   ),
                   Text(
-                    Formatters.currency(fund.targetAmount),
-                    style: const TextStyle(color: Colors.grey),
+                    '${context.l10n.fundTarget}: ${Formatters.currency(fund.targetAmount)}',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                 ],
               ),
+              if (fund.currentAmount > fund.targetAmount) ...[  
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.emoji_events, color: Color(0xffF59E0B), size: 14),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${context.l10n.fundExceeded}: +${Formatters.currency(fund.currentAmount - fund.targetAmount)}',
+                      style: const TextStyle(
+                        color: Color(0xffF59E0B),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
 
               /// DEADLINE
               if (fund.deadline != null) ...[
@@ -185,7 +209,7 @@ class _SharedFundsScreenState extends State<SharedFundsScreen> {
                     const Icon(Iconsax.calendar, size: 14, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text(
-                      'Hạn: ${Formatters.date(fund.deadline!)}',
+                      '${context.l10n.deadline}: ${Formatters.date(fund.deadline!)}',
                       style: const TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                   ],

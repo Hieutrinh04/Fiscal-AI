@@ -1,0 +1,68 @@
+@startuml 05 - Quan ly Vi va Chuyen tien
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam ActivityBackgroundColor #E3F2FD
+skinparam ActivityBorderColor #1565C0
+skinparam ActivityDiamondBackgroundColor #FFF3E0
+skinparam ActivityDiamondBorderColor #E65100
+skinparam ArrowColor #1565C0
+skinparam NoteBackgroundColor #F3E5F5
+skinparam NoteBorderColor #6A1B9A
+skinparam swimlaneBorderColor #1565C0
+skinparam swimlaneBackgroundColor #E8F5E9
+
+title Sơ đồ hoạt động: Quản lý Ví & Chuyển tiền
+
+|User|
+start
+:Chọn tab "Ví tiền";
+
+|WalletProvider|
+:loadWallets() → SELECT * FROM wallets\nWHERE user_id = ? (Supabase);
+:notifyListeners();
+
+|WalletScreen|
+:Hiển thị danh sách ví + tổng số dư;
+
+|User|
+if (Thao tác?) then (Thêm ví)
+  :Nhập tên + số dư ban đầu + icon;
+  |WalletProvider|
+  :addWallet() → INSERT INTO wallets (Supabase);
+  :loadWallets() → notifyListeners();
+  |User|
+  :Thấy ví mới trong danh sách;
+
+else if (Chuyển tiền giữa ví) then (Chuyển)
+  :Chọn ví nguồn + ví đích + số tiền;
+  |WalletProvider|
+  :validateTransfer();
+  note right
+    Cần ≥ 2 ví / ví nguồn ≠ ví đích
+    Số tiền > 0 / Số dư đủ
+  end note
+  if (Hợp lệ?) then (Có)
+    :transfer() → UPDATE fromWallet: balance - amount;
+    :UPDATE toWallet: balance + amount;
+    :loadWallets() → notifyListeners();
+  else (Không)
+    :Hiện thông báo lỗi;
+  endif
+
+else (Xoá ví)
+  :Chọn ví → Xoá;
+  |WalletProvider|
+  :deleteWallet() → DELETE FROM wallets (Supabase);
+  :_wallets.removeWhere(id) → notifyListeners();
+endif
+
+|User|
+:Xem số dư đã cập nhật;
+note right
+  Realtime: WalletProvider subscribe
+  Supabase Realtime → wallets UPDATE
+  → loadWallets() tự gọi → UI tự cập nhật
+end note
+stop
+
+@enduml

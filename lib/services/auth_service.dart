@@ -1,9 +1,14 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile.dart';
 
 class AuthService {
   final _client = Supabase.instance.client;
+
+  /// Deep link dùng cho cả forgot-password và OAuth callback.
+  /// Phải khớp với `<data android:scheme=... android:host=... />` trong
+  /// AndroidManifest.xml và được whitelist trong Supabase Dashboard →
+  /// Authentication → URL Configuration → Redirect URLs.
+  static const String _deepLinkRedirect = 'com.example.wallet://login-callback';
 
   /// ================= SIGN UP =================
   Future<User?> signUp({
@@ -48,35 +53,44 @@ class AuthService {
   }
 
   /// ================= FORGOT PASSWORD =================
+  /// Gửi email reset password với deep link redirect về app.
+  /// Email Supabase sẽ dẫn user tới `com.example.wallet://login-callback?code=xxx`,
+  /// Android mở app qua intent-filter và supabase_flutter exchange code → fire
+  /// `AuthChangeEvent.passwordRecovery`.
   Future<void> resetPassword({required String email}) async {
     await _client.auth.resetPasswordForEmail(
       email,
-      redirectTo: kIsWeb
-          ? 'http://localhost:3000'
-          : 'com.example.wallet://login-callback',
+      redirectTo: _deepLinkRedirect,
     );
   }
 
   /// ================= GOOGLE SIGN IN (Supabase OAuth) =================
   ///
-  /// Web: dùng redirectMode (chuyển hẳn sang trang Google rồi quay lại)
-  /// Mobile: dùng deep link để app nhận callback
+  /// Mobile flow:
+  /// 1. Mở Custom Tab (Chrome trong app) tới trang Google login.
+  /// 2. Sau khi user đồng ý, Google redirect về Supabase, Supabase redirect
+  ///    về `com.example.wallet://login-callback?code=xxx`.
+  /// 3. Android intent-filter (AndroidManifest.xml) bắt URL → mở lại app.
+  /// 4. supabase_flutter exchange code → fire `AuthChangeEvent.signedIn`.
   ///
-  /// Session được xử lý qua onAuthStateChange listener.
-  Future<void> signInWithGoogle() async {
-    if (kIsWeb) {
-      /// Web: dùng redirect mode – ổn định hơn popup (không bị chặn)
-      await _client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: null, // Supabase dùng Site URL từ dashboard
-      );
-    } else {
-      /// Mobile: cần deep link
-      await _client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: 'com.example.wallet://login-callback',
-      );
-    }
+  /// Yêu cầu: URL `com.example.wallet://login-callback` phải được whitelist
+  /// trong Supabase Dashboard → Authentication → URL Configuration →
+  /// Redirect URLs.
+  ///
+  /// Trả về `true` nếu URL OAuth đã được mở thành công.
+  ///
+  /// Dùng `LaunchMode.platformDefault` (Custom Tabs trên Android) — tab này
+  /// TỰ ĐÓNG khi gặp redirect tới custom scheme `com.example.wallet://...`,
+  /// không để lại trang 404 trong Chrome như khi dùng `externalApplication`.
+  Future<bool> signInWithGoogle() async {
+    return await _client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: _deepLinkRedirect,
+      authScreenLaunchMode: LaunchMode.platformDefault,
+      // 🔥 Bắt buộc Google hiện màn chọn tài khoản mỗi lần — tránh tự động
+      // đăng nhập với account đã lưu trong Chrome.
+      queryParams: const {'prompt': 'select_account'},
+    );
   }
 
   /// ================= ENSURE PROFILE (gọi từ listener) =================

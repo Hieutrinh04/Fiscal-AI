@@ -4,10 +4,17 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../providers/goal_provider.dart';
+import '../../providers/wallet_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../providers/ai_provider.dart';
 import '../../models/goal.dart';
+import '../../models/transaction.dart';
+import '../../models/category.dart';
+import '../../models/wallet.dart';
 import '../../utils/formatters.dart';
 import '../../utils/snackbar.dart';
+import '../../l10n/app_localizations.dart';
+import '../ai/ai_chat_screen.dart';
 
 /// 🔥 COLOR SYSTEM
 const primaryColor = Color(0xff2F80ED);
@@ -50,82 +57,44 @@ class _GoalsScreenState extends State<GoalsScreen> {
     }
   }
 
-  void _showDepositDialog(Goal goal) {
-    final controller = TextEditingController();
+  /// Modal chỉ thu thập dữ liệu, trả về result — async work chạy ở parent
+  Future<void> _showDepositDialog(Goal goal) async {
+    final wallets = context.read<WalletProvider>().wallets;
 
-    showModalBottomSheet(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Nạp tiền vào "${goal.name}"',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                IconButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  icon: const Icon(Icons.close),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Hiện tại: ${Formatters.currency(goal.currentAmount.toDouble())} / ${Formatters.currency(goal.targetAmount.toDouble())}',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              decoration: InputDecoration(
-                hintText: 'Số tiền nạp (₫)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final amount = int.tryParse(controller.text) ?? 0;
-                  if (amount == 0) return;
-
-                  await context.read<GoalProvider>().addAmount(goal.id, amount);
-
-                  if (mounted) {
-                    Navigator.pop(ctx);
-                    AppSnackBar.success(context, '+${Formatters.currency(amount.toDouble())} vào ${goal.name}');
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Xác nhận nạp tiền',
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
-              ),
-            ),
-          ],
-        ),
-      ),
+      builder: (ctx) => _DepositSheet(goal: goal, wallets: wallets),
     );
+
+    if (result == null || !mounted) return;
+
+    final amount = result['amount'] as int;
+    final wallet = result['wallet'] as Wallet;
+    final txProvider = context.read<TransactionProvider>();
+    final goalProv = context.read<GoalProvider>();
+    final walletProv = context.read<WalletProvider>();
+
+    try {
+      final now = DateTime.now();
+      await txProvider.addTransaction(Transaction(
+        id: '', userId: '',
+        walletId: wallet.id,
+        type: TransactionType.expense,
+        amount: amount,
+        note: 'Tiết kiệm: ${goal.name}',
+        date: now, createdAt: now, updatedAt: now,
+      ));
+      await goalProv.addAmount(goal.id, amount);
+      await walletProv.loadWallets();
+      if (mounted) {
+        AppSnackBar.success(context,
+            'Đã góp ${Formatters.currency(amount.toDouble())} vào ${goal.name}');
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackBar.error(context, 'Lỗi: ${e.toString().replaceAll('Exception: ', '')}');
+      }
+    }
   }
 
   void _showAddGoalDialog() {
@@ -250,9 +219,9 @@ class _GoalsScreenState extends State<GoalsScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -302,7 +271,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   _showEditGoalDialog(g);
                 },
                 icon: const Icon(Iconsax.edit, size: 18),
-                label: const Text("Chỉnh sửa mục tiêu"),
+                label: Text(context.l10n.editGoal),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: primaryColor,
                   side: const BorderSide(color: primaryColor),
@@ -322,7 +291,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   _showDeleteGoalConfirm(g);
                 },
                 icon: const Icon(Iconsax.trash, size: 18),
-                label: const Text("Xoá mục tiêu"),
+                label: Text(context.l10n.deleteGoal),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFEE2E2),
                   foregroundColor: const Color(0xFFEF4444),
@@ -469,28 +438,28 @@ class _GoalsScreenState extends State<GoalsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Xoá mục tiêu"),
-        content: Text('Bạn có chắc muốn xoá mục tiêu "${g.name}"?'),
+        title: Text(context.l10n.deleteGoal),
+        content: Text(context.l10n.deleteGoalConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Huỷ"),
+            child: Text(context.l10n.cancel),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(ctx); // Pop dialog trước
+              Navigator.pop(ctx);
               try {
                 await context.read<GoalProvider>().deleteGoal(g.id);
                 if (mounted) {
-                  AppSnackBar.success(context, 'Đã xoá mục tiêu "${g.name}"');
+                  AppSnackBar.success(context, context.l10n.success);
                 }
               } catch (e) {
                 if (mounted) {
-                  AppSnackBar.error(context, 'Lỗi: $e');
+                  AppSnackBar.error(context, '${context.l10n.error}: $e');
                 }
               }
             },
-            child: const Text("Xoá", style: TextStyle(color: Colors.red)),
+            child: Text(context.l10n.delete, style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -521,10 +490,9 @@ class _GoalsScreenState extends State<GoalsScreen> {
     final percent = totalTarget > 0 ? (totalSaved / totalTarget) : 0.0;
     final latestInsight = aiProvider.insights.isNotEmpty
         ? aiProvider.insights.first.content
-        : "Hãy thiết lập mục tiêu tài chính của bạn.";
+        : context.l10n.aiInsightFallback;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => _initData(),
@@ -533,7 +501,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   boxShadow: [
                     BoxShadow(
                         color: Colors.black.withOpacity(0.04),
@@ -594,7 +562,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                             child: LinearProgressIndicator(
                               value: percent,
                               minHeight: 8,
-                              backgroundColor: Colors.grey[200],
+                              backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey[700] : Colors.grey[200],
                               valueColor: const AlwaysStoppedAnimation(primaryColor),
                             ),
                           ),
@@ -624,41 +592,54 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(colors: [primaryColor, secondaryColor]),
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? const Color(0xff1A3558)
+                            : const Color(0xffEFF6FF),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Row(children: [
-                            Icon(Icons.trending_up, size: 16, color: Colors.white),
-                            SizedBox(width: 6),
-                            Text('AI gợi ý tiết kiệm',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white)),
-                          ]),
-                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Iconsax.magic_star, color: Colors.blue, size: 16),
+                              const SizedBox(width: 6),
+                              Text(context.l10n.aiInsight,
+                                  style: const TextStyle(
+                                      color: Colors.blue,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
                           Text(
                             latestInsight,
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.white.withOpacity(0.85),
-                                height: 1.4),
+                            style: const TextStyle(
+                                color: Color(0xff6B7280), fontSize: 12, height: 1.5),
+                          ),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: () => Navigator.push(context,
+                                MaterialPageRoute(builder: (_) => const AIChatScreen())),
+                            child: Text("${context.l10n.aiAssistant} →",
+                                style: const TextStyle(
+                                    color: Colors.blue,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600)),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 14),
                     if (goals.isEmpty)
-                      const Center(
+                      Center(
                           child: Padding(
-                        padding: EdgeInsets.all(40),
-                        child: Text("Chưa có mục tiêu nào",
-                            style: TextStyle(color: Colors.grey)),
+                        padding: const EdgeInsets.all(40),
+                        child: Text(context.l10n.noGoals,
+                            style: const TextStyle(color: Colors.grey)),
                       ))
                     else
                       ...goals.map((g) {
@@ -670,7 +651,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: Theme.of(context).cardColor,
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: Column(
@@ -696,7 +677,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                 LinearProgressIndicator(
                                   value: pct,
                                   color: primaryColor,
-                                  backgroundColor: Colors.grey[200],
+                                  backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey[700] : Colors.grey[200],
                                 ),
                                 const SizedBox(height: 8),
                                 GestureDetector(
@@ -725,6 +706,149 @@ class _GoalsScreenState extends State<GoalsScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// ===== DEPOSIT SHEET =====
+/// Widget riêng biệt — chỉ thu thập dữ liệu và trả về qua Navigator.pop
+/// Không chứa bất kỳ async work nào để tránh Flutter Web mouse_tracker bug
+class _DepositSheet extends StatefulWidget {
+  final Goal goal;
+  final List<Wallet> wallets;
+  const _DepositSheet({required this.goal, required this.wallets});
+
+  @override
+  State<_DepositSheet> createState() => _DepositSheetState();
+}
+
+class _DepositSheetState extends State<_DepositSheet> {
+  final _amountCtrl = TextEditingController();
+  Wallet? _selectedWallet;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedWallet = widget.wallets.isNotEmpty ? widget.wallets.first : null;
+  }
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final amount = int.tryParse(_amountCtrl.text) ?? 0;
+    if (amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập số tiền hợp lệ')));
+      return;
+    }
+    if (_selectedWallet == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn ví')));
+      return;
+    }
+    if (_selectedWallet!.balance < amount) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Số dư ví không đủ (còn ${Formatters.currency(_selectedWallet!.balance.toDouble())})')));
+      return;
+    }
+    Navigator.pop(context, {'amount': amount, 'wallet': _selectedWallet});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Text('Góp tiền vào "${widget.goal.name}"',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tiến độ: ${Formatters.currency(widget.goal.currentAmount.toDouble())} / ${Formatters.currency(widget.goal.targetAmount.toDouble())}',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            if (widget.wallets.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: const Text('Bạn chưa có ví nào. Tạo ví trước để góp tiền.'),
+              )
+            else ...[
+              const Text('Trừ từ ví:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              ...widget.wallets.map((w) => GestureDetector(
+                onTap: () => setState(() => _selectedWallet = w),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _selectedWallet?.id == w.id ? primaryColor : Colors.grey.shade300,
+                      width: _selectedWallet?.id == w.id ? 2 : 1,
+                    ),
+                    color: _selectedWallet?.id == w.id ? primaryColor.withOpacity(0.05) : Colors.white,
+                  ),
+                  child: Row(
+                    children: [
+                      Text(w.icon, style: const TextStyle(fontSize: 20)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(w.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                            Text(Formatters.currency(w.balance.toDouble()),
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                          ],
+                        ),
+                      ),
+                      if (_selectedWallet?.id == w.id)
+                        const Icon(Icons.check_circle, color: primaryColor, size: 20),
+                    ],
+                  ),
+                ),
+              )),
+            ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _amountCtrl,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              decoration: InputDecoration(
+                hintText: 'Số tiền góp (₫)',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Huỷ'),
+        ),
+        ElevatedButton(
+          onPressed: widget.wallets.isEmpty ? null : _submit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: primaryColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: const Text('Xác nhận', style: TextStyle(color: Colors.white)),
+        ),
+      ],
     );
   }
 }

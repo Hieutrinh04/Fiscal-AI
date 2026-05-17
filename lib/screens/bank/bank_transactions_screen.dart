@@ -61,7 +61,6 @@ class _BankTransactionsScreenState extends State<BankTransactionsScreen> {
     final accountInfo = bank.sepayAccountInfo;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: Text('${widget.account.bankName} - ${widget.account.accountNumber}'),
         elevation: 0,
@@ -269,7 +268,7 @@ class _BankTransactionsScreenState extends State<BankTransactionsScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(

@@ -1,0 +1,85 @@
+@startuml 03 - AI Chat va Insights
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam ActivityBackgroundColor #E3F2FD
+skinparam ActivityBorderColor #1565C0
+skinparam ActivityDiamondBackgroundColor #FFF3E0
+skinparam ActivityDiamondBorderColor #E65100
+skinparam ArrowColor #1565C0
+skinparam NoteBackgroundColor #F3E5F5
+skinparam NoteBorderColor #6A1B9A
+skinparam swimlaneBorderColor #1565C0
+skinparam swimlaneBackgroundColor #E8F5E9
+
+title Sơ đồ hoạt động: AI Chat & Insights (Gemini)
+
+|HomeScreen|
+start
+:_initData(): loadWallets() + loadTransactions();
+:_buildFinancialContext();
+note right
+  Tổng số dư, thu/chi tháng,
+  top danh mục, giao dịch gần đây
+end note
+:AiProvider.setFinancialContext(context);
+:AiProvider.loadInsights(userId);
+
+|AiService|
+:getSavedInsights() → truy vấn Supabase;
+if (Đã có insights trong DB?) then (Có)
+  :Trả về từ DB (không gọi Gemini);
+else (Không)
+  :getInsights() → POST Gemini REST API;
+  :Parse JSON: {type, title, content};
+  :INSERT INTO ai_insights (Supabase);
+endif
+
+|HomeScreen|
+:Hiển thị Insight card cho user;
+
+|User|
+:Mở AIChatScreen;
+
+|AiProvider|
+:loadChatHistory() → SELECT ai_chat_history;
+if (Có lịch sử?) then (Có)
+  :Hiển thị chat cũ;
+else (Không)
+  :Hiển thị màn hình chào;
+endif
+
+|User|
+:Nhập câu hỏi → Gửi;
+
+|AiProvider|
+:Thêm userMessage vào UI ngay;
+:isSending = true → notifyListeners();
+
+|AiService|
+:_waitForRateLimit();
+note right: Tối thiểu 10s\ngiữa các lần gọi
+if (Tin đầu tiên?) then (Có)
+  :Gắn financialContext + userName vào message;
+endif
+:POST Gemini (gemini-2.5-flash-lite)\n{contents, systemInstruction, generationConfig};
+if (HTTP 200?) then (Có)
+  :Lấy aiReply từ candidates[0];
+  :Thêm vào _chatHistory (multi-turn);
+  :INSERT ai_chat_history (non-blocking);
+else (429 / Lỗi)
+  :Throw Exception;
+endif
+
+|AiProvider|
+if (Thành công?) then (Có)
+  :Thêm aiMessage vào chatMessages;
+else (Lỗi)
+  :Thêm ⚠️ error message inline;
+endif
+:isSending = false → notifyListeners();
+
+|User|
+:Xem phản hồi → Tiếp tục chat;
+stop
+
+@enduml

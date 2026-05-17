@@ -214,6 +214,24 @@ class SharedFundService {
       'note': note,
     }).select().single();
 
+    /// Thêm vào lịch sử giao dịch chính để hiển thị ở trang chủ
+    final fundInfo = await _client
+        .from('shared_funds')
+        .select('name')
+        .eq('id', fundId)
+        .maybeSingle();
+    final fundName = fundInfo?['name'] ?? 'Quỹ chung';
+    await _client.from('transactions').insert({
+      'user_id': _userId,
+      'wallet_id': walletId,
+      'type': 'expense',
+      'amount': amount.toInt(),
+      'note': note != null && note.isNotEmpty
+          ? 'Góp quỹ "$fundName": $note'
+          : 'Góp quỹ "$fundName"',
+      'date': DateTime.now().toIso8601String(),
+    });
+
     return FundTransaction.fromJson(data);
   }
 

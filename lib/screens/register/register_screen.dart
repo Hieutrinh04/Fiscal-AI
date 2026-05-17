@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../utils/snackbar.dart';
+import '../../l10n/app_localizations.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/feature_card.dart';
 
@@ -55,7 +56,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xffF3F4F6),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -70,33 +70,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
-                    "Trợ Lý Tài Chính AI Cá Nhân",
-                    style: TextStyle(
+                    context.l10n.appTitle,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
                   Text(
-                    "Theo dõi chi tiêu, AI phân loại tự động",
-                    style: TextStyle(color: Colors.white70),
+                    context.l10n.appTagline,
+                    style: const TextStyle(color: Colors.white70),
                   ),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   Row(
                     children: [
                       Expanded(
-                        child: StatCard(title: "Tiết kiệm TB", value: "₫3.2M"),
+                        child: StatCard(title: context.l10n.monthlyContribution, value: '₫3.2M'),
                       ),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: StatCard(title: "Người dùng", value: "10K+"),
+                        child: StatCard(title: context.l10n.members, value: '10K+'),
                       ),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: StatCard(title: "AI chính xác", value: "95%"),
+                        child: StatCard(title: 'AI', value: '95%'),
                       ),
                     ],
                   ),
@@ -145,7 +145,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: const [
                   BoxShadow(
@@ -157,11 +157,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               child: Column(
                 children: [
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      "Tạo tài khoản",
-                      style: TextStyle(
+                      context.l10n.register,
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
@@ -174,7 +174,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   TextField(
                     controller: _nameController,
                     decoration: InputDecoration(
-                      hintText: "Họ và tên",
+                      hintText: context.l10n.fullName,
                       prefixIcon: const Icon(Iconsax.user),
                       filled: true,
                       fillColor: const Color(0xffF9FAFB),
@@ -191,7 +191,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   TextField(
                     controller: _emailController,
                     decoration: InputDecoration(
-                      hintText: "Email",
+                      hintText: context.l10n.email,
                       prefixIcon: const Icon(Iconsax.sms),
                       filled: true,
                       fillColor: const Color(0xffF9FAFB),
@@ -209,8 +209,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _passwordController,
                     obscureText: obscurePassword,
                     decoration: InputDecoration(
-                      hintText: "Mật khẩu",
-                      helperText: "Tối thiểu 6 ký tự (ví dụ: 123456)",
+                      hintText: context.l10n.password,
+                      helperText: context.l10n.enterPassword,
                       prefixIcon: const Icon(Iconsax.lock),
                       suffixIcon: GestureDetector(
                         onTap: () {
@@ -306,9 +306,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ? const CircularProgressIndicator(
                               color: Colors.white,
                             )
-                          : const Text(
-                              "Đăng ký",
-                              style: TextStyle(fontSize: 16),
+                          : Text(
+                              context.l10n.registerBtn,
+                              style: const TextStyle(fontSize: 16),
                             ),
                     ),
                   ),
@@ -317,16 +317,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                   /// DIVIDER
                   Row(
-                    children: const [
-                      Expanded(child: Divider()),
+                    children: [
+                      const Expanded(child: Divider()),
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Text(
-                          'hoặc',
-                          style: TextStyle(color: Colors.grey, fontSize: 13),
+                          context.l10n.locale.languageCode == 'vi' ? 'hoặc' : 'or',
+                          style: const TextStyle(color: Colors.grey, fontSize: 13),
                         ),
                       ),
-                      Expanded(child: Divider()),
+                      const Expanded(child: Divider()),
                     ],
                   ),
 
@@ -342,7 +342,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                         ),
-                        backgroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).cardColor,
                       ),
                       onPressed: auth.isLoading
                           ? null
@@ -363,8 +363,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const SizedBox(width: 10),
                           Text(
                             auth.isLoading
-                                ? 'Đang đăng nhập...'
-                                : 'Đăng ký với Google',
+                                ? context.l10n.loading
+                                : context.l10n.loginWithGoogle,
                             style: const TextStyle(
                               fontSize: 15,
                               color: Colors.black87,
@@ -384,8 +384,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Navigator.pushReplacementNamed(
                           context, '/login');
                     },
-                    child: const Text(
-                      "Đã có tài khoản? Đăng nhập",
+                    child: Text(
+                      context.l10n.alreadyHaveAccount,
                       style: TextStyle(
                         color: Color(0xff2F80ED),
                         fontWeight: FontWeight.w500,

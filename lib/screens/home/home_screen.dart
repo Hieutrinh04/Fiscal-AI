@@ -12,7 +12,9 @@ import '../../providers/ai_provider.dart';
 import '../../models/transaction.dart';
 import '../../models/category.dart';
 import '../../utils/formatters.dart';
+import '../../utils/ai_context.dart';
 import '../../utils/snackbar.dart';
+import '../../l10n/app_localizations.dart';
 
 import '../../widgets/notification_panel.dart';
 import '../../providers/bank_provider.dart';
@@ -108,29 +110,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   /// 🔥 BUILD FINANCIAL CONTEXT
+  /// Tổng hợp ví, thu/chi, mục tiêu qua [AiContextBuilder] rồi đưa cho AiProvider.
   void _buildAndSetFinancialContext(String userId) {
-    final walletProvider = this.context.read<WalletProvider>();
-    final transProvider = this.context.read<TransactionProvider>();
-
-    final totalBalance = walletProvider.totalBalance;
-    final totalIncome = transProvider.totalIncome;
-    final totalExpense = transProvider.totalExpense;
-
-    final walletsInfo = walletProvider.wallets.map((w) =>
-      '- ${w.name}: ${Formatters.currency(w.balance.toDouble())}'
-    ).join('\n');
-
-    final recentExpenses = transProvider.transactions
-        .where((t) => t.type == TransactionType.expense)
-        .take(5)
-        .map((t) => '- ${(t.note != null && t.note!.isNotEmpty) ? t.note : t.categoryId}: ${Formatters.currency(t.amount.toDouble())}')
-        .join('\n');
-
-    final financialContext = 'Tổng số dư: ${Formatters.currency(totalBalance.toDouble())}\n'
-        'Tổng thu nhập: ${Formatters.currency(totalIncome.toDouble())}\n'
-        'Tổng chi tiêu: ${Formatters.currency(totalExpense.toDouble())}\n'
-        'Danh sách ví:\n$walletsInfo\n'
-        'Chi tiêu gần đây:\n$recentExpenses';
+    final financialContext = AiContextBuilder.build(this.context);
 
     final authProvider = this.context.read<AuthProvider>();
     final aiProvider = this.context.read<AiProvider>();
@@ -142,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xffF3F4F6),
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: SafeArea(
         child: Stack(
           children: [
@@ -176,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final transProvider = context.watch<TransactionProvider>();
     final notiProvider = context.watch<NotificationProvider>();
 
-    final name = authProvider.profile?.fullName ?? "Người dùng";
+    final name = authProvider.profile?.fullName ?? context.l10n.hello;
     final totalBalance = walletProvider.totalBalance;
     final totalIncome = transProvider.totalIncome;
     final totalExpense = transProvider.totalExpense;
@@ -204,7 +186,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Xin chào 👋",
+                  Text("${context.l10n.hello} 👋",
                       style: TextStyle(color: Colors.white70, fontSize: 12)),
                   const SizedBox(height: 4),
                   Text(name,
@@ -298,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Số dư hiện tại",
+                Text(context.l10n.currentBalance,
                     style: TextStyle(color: Colors.white70, fontSize: 12)),
                 const SizedBox(height: 4),
                 Text(
@@ -328,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("Thu nhập",
+                        Text(context.l10n.income,
                             style: TextStyle(
                                 color: Colors.white60, fontSize: 10)),
                         Text(Formatters.currency(totalIncome.toDouble()),
@@ -355,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("Chi tiêu",
+                        Text(context.l10n.expense,
                             style: TextStyle(
                                 color: Colors.white60, fontSize: 10)),
                         Text(Formatters.currency(totalExpense.toDouble()),
@@ -439,7 +421,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             /// CHỈNH SỬA
             ListTile(
               leading: const Icon(Iconsax.edit, color: Colors.blue),
-              title: const Text("Chỉnh sửa giao dịch"),
+              title: Text(context.l10n.editTransaction),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -454,24 +436,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             /// XOÁ
             ListTile(
               leading: const Icon(Iconsax.trash, color: Colors.red),
-              title: const Text("Xoá giao dịch",
-                  style: TextStyle(color: Colors.red)),
+              title: Text(context.l10n.deleteTransaction,
+                  style: const TextStyle(color: Colors.red)),
               onTap: () async {
                 Navigator.pop(context);
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (_) => AlertDialog(
-                    title: const Text("Xác nhận xoá"),
-                    content: Text(
-                        "Bạn có chắc muốn xoá giao dịch \"${t.note ?? t.category?.name ?? 'Giao dịch'}\" không?"),
+                    title: Text(context.l10n.deleteTransaction),
+                    content: Text(context.l10n.deleteTransactionConfirm),
                     actions: [
                       TextButton(
                           onPressed: () => Navigator.pop(context, false),
-                          child: const Text("Huỷ")),
+                          child: Text(context.l10n.cancel)),
                       TextButton(
                           onPressed: () => Navigator.pop(context, true),
-                          child: const Text("Xoá",
-                              style: TextStyle(color: Colors.red))),
+                          child: Text(context.l10n.delete,
+                              style: const TextStyle(color: Colors.red))),
                     ],
                   ),
                 );
@@ -507,7 +488,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final transactions = transProvider.transactions;
     final latestInsight = aiProvider.insights.isNotEmpty
         ? aiProvider.insights.first.content
-        : "Chào bạn! Tôi là trợ lý tài chính AI. Hãy bắt đầu ghi chép chi tiêu để tôi có thể phân tích cho bạn nhé.";
+        : context.l10n.aiInsightFallback;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -521,8 +502,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: GestureDetector(
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const ExpenseScreen())),
-                  child: const ActionItem(
-                      Iconsax.arrow_up, Colors.red, "Chi tiêu"),
+                  child: ActionItem(
+                      Iconsax.arrow_up, Colors.red, context.l10n.expense),
                 ),
               ),
               const SizedBox(width: 10),
@@ -538,8 +519,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       MaterialPageRoute(builder: (_) => const StatisticsScreen()),
                     );
                   },
-                  child: const ActionItem(
-                      Iconsax.chart, Colors.blue, "Thống kê"),
+                  child: ActionItem(
+                      Iconsax.chart, Colors.blue, context.l10n.statistics),
                 ),
               ),
               const SizedBox(width: 10),
@@ -547,8 +528,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: GestureDetector(
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const GoalsScreen())),
-                  child: const ActionItem(
-                      Iconsax.flag, Colors.green, "Mục tiêu"),
+                  child: ActionItem(
+                      Iconsax.flag, Colors.green, context.l10n.goals),
                 ),
               ),
             ],
@@ -563,8 +544,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: GestureDetector(
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const LinkBankScreen())),
-                  child: const ActionItem(
-                      Iconsax.bank, Colors.teal, "Ngân hàng"),
+                  child: ActionItem(
+                      Iconsax.bank, Colors.teal, context.l10n.linkBank),
                 ),
               ),
               const SizedBox(width: 10),
@@ -572,8 +553,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: GestureDetector(
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const FriendsScreen())),
-                  child: const ActionItem(
-                      Iconsax.people, Colors.purple, "Bạn bè"),
+                  child: ActionItem(
+                      Iconsax.people, Colors.purple, context.l10n.friends),
                 ),
               ),
               const SizedBox(width: 10),
@@ -581,8 +562,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: GestureDetector(
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const SharedFundsScreen())),
-                  child: const ActionItem(
-                      Iconsax.money_send, Colors.orange, "Quỹ chung"),
+                  child: ActionItem(
+                      Iconsax.money_send, Colors.orange, context.l10n.sharedFunds),
                 ),
               ),
             ],
@@ -596,16 +577,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.blue.withOpacity(0.2)),
-              color: const Color(0xffEFF6FF),
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xff1A3558)
+                  : const Color(0xffEFF6FF),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Iconsax.magic_star, color: Colors.blue, size: 16),
-                    SizedBox(width: 6),
-                    Text("AI Insight",
+                    const Icon(Iconsax.magic_star, color: Colors.blue, size: 16),
+                    const SizedBox(width: 6),
+                    Text(context.l10n.aiInsight,
                         style: TextStyle(
                             color: Colors.blue,
                             fontSize: 12,
@@ -622,7 +605,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 GestureDetector(
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const AIChatScreen())),
-                  child: const Text("Hỏi AI Advisor →",
+                  child: Text("${context.l10n.aiAssistant} →",
                       style: TextStyle(
                           color: Colors.blue,
                           fontSize: 12,
@@ -643,12 +626,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Giao dịch gần đây",
+              Text(context.l10n.recentTransactions,
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               GestureDetector(
                 onTap: () => Navigator.push(context,
                     MaterialPageRoute(builder: (_) => const ExpenseScreen())),
-                child: const Text("Xem tất cả",
+                child: Text(context.l10n.viewAll,
                     style: TextStyle(
                         color: Colors.blue,
                         fontSize: 12,
@@ -667,10 +650,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
           /// TRANSACTION LIST (Dữ liệu thật)
           if (transactions.isEmpty)
-            const Center(
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text("Chưa có giao dịch nào",
+                padding: const EdgeInsets.all(20),
+                child: Text(context.l10n.noTransactions,
                     style: TextStyle(color: Colors.grey)),
               ),
             )
@@ -703,12 +686,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text("Quỹ chung",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(context.l10n.sharedFunds,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             GestureDetector(
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const SharedFundsScreen())),
-              child: const Text("Xem tất cả",
+              child: Text(context.l10n.viewAll,
                   style: TextStyle(
                       color: Colors.blue,
                       fontSize: 12,
@@ -722,20 +705,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Column(
               children: [
                 Icon(Iconsax.people, size: 36, color: Colors.grey[400]),
                 const SizedBox(height: 8),
-                const Text("Chưa có quỹ chung",
-                    style: TextStyle(color: Colors.grey, fontSize: 13)),
+                Text(context.l10n.noFundYet,
+                    style: const TextStyle(color: Colors.grey, fontSize: 13)),
                 const SizedBox(height: 4),
                 GestureDetector(
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const SharedFundsScreen())),
-                  child: const Text("Tạo quỹ mới →",
+                  child: Text(context.l10n.createFundNow,
                       style: TextStyle(
                           color: Colors.blue,
                           fontSize: 12,
@@ -755,7 +738,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
@@ -789,7 +772,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 14)),
-                                Text('${fund.memberCount} thành viên',
+                                Text('${fund.memberCount} ${context.l10n.members}',
                                     style: const TextStyle(
                                         color: Colors.grey, fontSize: 11)),
                               ],
@@ -809,7 +792,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         borderRadius: BorderRadius.circular(6),
                         child: LinearProgressIndicator(
                           value: fund.progress,
-                          backgroundColor: Colors.grey[200],
+                          backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey[700] : Colors.grey[200],
                           valueColor:
                               const AlwaysStoppedAnimation(Colors.orange),
                           minHeight: 6,
@@ -851,7 +834,7 @@ class ActionItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -873,7 +856,9 @@ class ActionItem extends StatelessWidget {
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 8),
-          Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -903,7 +888,7 @@ class TransactionItem extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(

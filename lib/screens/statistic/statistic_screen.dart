@@ -13,6 +13,7 @@ import '../../models/transaction.dart';
 import '../../models/category.dart' as model;
 import '../../utils/formatters.dart';
 import '../../widgets/markdown_text.dart';
+import '../../l10n/app_localizations.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({super.key});
@@ -26,8 +27,57 @@ class _StatisticsScreenState extends State<StatisticsScreen>
   static const List<String> _periodLabels = ['Tuần', 'Tháng', 'Năm'];
   int selectedTab = 1;
   int _typeTab = 0;
+  DateTime _currentPeriod = DateTime.now();
   DateTime _calendarMonth = DateTime.now();
   DateTime? _selectedDay;
+
+  /// ===== DATE RANGE =====
+  (DateTime, DateTime) get _dateRange {
+    final p = _currentPeriod;
+    switch (selectedTab) {
+      case 0: // Tuần — Mon→Sun
+        final wd = p.weekday;
+        final start = DateTime(p.year, p.month, p.day - wd + 1);
+        return (start, start.add(const Duration(days: 6)));
+      case 2: // Năm
+        return (DateTime(p.year, 1, 1), DateTime(p.year, 12, 31));
+      default: // Tháng
+        return (DateTime(p.year, p.month, 1),
+            DateTime(p.year, p.month + 1, 0));
+    }
+  }
+
+  String get _periodNavLabel {
+    final (s, e) = _dateRange;
+    switch (selectedTab) {
+      case 0:
+        return '${s.day}/${s.month} – ${e.day}/${e.month}/${e.year}';
+      case 2:
+        return 'Năm ${_currentPeriod.year}';
+      default:
+        return 'Tháng ${_currentPeriod.month} / ${_currentPeriod.year}';
+    }
+  }
+
+  void _prevPeriod() => setState(() {
+    _selectedDay = null;
+    switch (selectedTab) {
+      case 0: _currentPeriod = _currentPeriod.subtract(const Duration(days: 7)); break;
+      case 2: _currentPeriod = DateTime(_currentPeriod.year - 1, 1, 1); break;
+      default: _currentPeriod = DateTime(_currentPeriod.year, _currentPeriod.month - 1, 1);
+    }
+    if (selectedTab == 1) _calendarMonth = _currentPeriod;
+  });
+
+  void _nextPeriod() => setState(() {
+    _selectedDay = null;
+    switch (selectedTab) {
+      case 0: _currentPeriod = _currentPeriod.add(const Duration(days: 7)); break;
+      case 2: _currentPeriod = DateTime(_currentPeriod.year + 1, 1, 1); break;
+      default: _currentPeriod = DateTime(_currentPeriod.year, _currentPeriod.month + 1, 1);
+    }
+    if (selectedTab == 1) _calendarMonth = _currentPeriod;
+  });
 
   // 3D tilt animations
   late final AnimationController _entryController;
@@ -82,15 +132,16 @@ class _StatisticsScreenState extends State<StatisticsScreen>
     final categories = catProvider.categories;
     final latestInsight = aiProvider.insights.isNotEmpty
         ? aiProvider.insights.first.content
-        : "Hãy theo dõi chi tiêu của bạn qua biểu đồ.";
+        : context.l10n.aiInsightFallback;
 
     final selectedType = _typeTab == 0
         ? model.TransactionType.expense
         : model.TransactionType.income;
 
-    final dailyTotalsMap = transProvider.dailyTotals(selectedType);
+    final (rangeStart, rangeEnd) = _dateRange;
+    final dailyTotalsMap = transProvider.dailyTotalsInRange(selectedType, rangeStart, rangeEnd);
     final maxDaily = dailyTotalsMap.values.fold(0, (a, b) => a > b ? a : b);
-    final categoryTotalsMap = transProvider.categoryTotals(selectedType);
+    final categoryTotalsMap = transProvider.categoryTotalsInRange(selectedType, rangeStart, rangeEnd);
     final totalForType = categoryTotalsMap.values.fold(0, (a, b) => a + b);
     final dayTransactions = _selectedDay == null
         ? <Transaction>[]
@@ -123,11 +174,10 @@ class _StatisticsScreenState extends State<StatisticsScreen>
     }).toList()
       ..sort((a, b) => (b['value'] as int).compareTo(a['value'] as int));
 
-    final totalSpending = transProvider.totalExpense;
-    final totalIncome = transProvider.totalIncome;
+    final totalSpending = transProvider.totalInRange(rangeStart, rangeEnd, model.TransactionType.expense);
+    final totalIncome = transProvider.totalInRange(rangeStart, rangeEnd, model.TransactionType.income);
 
     return Scaffold(
-      backgroundColor: const Color(0xffF3F4F6),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => _initData(),
@@ -187,9 +237,11 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                                   ),
                                 ],
                               )),
-                          const SizedBox(height: 18),
-                          _staggered(
-                              4, _buildBarChartCard(selectedType, accentColor)),
+                          // Chỉ hiện biểu đồ xu hướng 6 tháng ở tab Tháng
+                          if (selectedTab == 1) ...[
+                            const SizedBox(height: 18),
+                            _staggered(4, _buildBarChartCard(selectedType, accentColor)),
+                          ],
                           const SizedBox(height: 18),
                           if (spendingList.isNotEmpty) ...[
                             _staggered(
@@ -219,8 +271,8 @@ class _StatisticsScreenState extends State<StatisticsScreen>
                                 padding: const EdgeInsets.all(20),
                                 child: Text(
                                   _typeTab == 0
-                                      ? "Chưa có dữ liệu chi tiêu"
-                                      : "Chưa có dữ liệu thu nhập",
+                                      ? context.l10n.noExpenseData
+                                      : context.l10n.noIncomeData,
                                   style: GoogleFonts.inter(
                                       color: Colors.grey, fontSize: 13),
                                 ),
@@ -334,15 +386,20 @@ class _StatisticsScreenState extends State<StatisticsScreen>
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(14),
+              color: Theme.of(context).cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Row(
               children: List.generate(_periodLabels.length, (index) {
                 final isActive = selectedTab == index;
                 return Expanded(
                   child: GestureDetector(
-                    onTap: () => setState(() => selectedTab = index),
+                    onTap: () => setState(() {
+                      selectedTab = index;
+                      _currentPeriod = DateTime.now();
+                      _calendarMonth = DateTime.now();
+                      _selectedDay = null;
+                    }),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 250),
                       curve: Curves.easeOutCubic,
@@ -388,7 +445,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -438,7 +495,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
             child: Text(
               label,
               style: GoogleFonts.inter(
-                color: active ? Colors.white : Colors.black54,
+                color: active ? Colors.white : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                 fontWeight: FontWeight.w600,
                 fontSize: 13.5,
               ),
@@ -449,13 +506,13 @@ class _StatisticsScreenState extends State<StatisticsScreen>
     );
   }
 
-  /// ================= CALENDAR CARD =================
+  /// ================= CALENDAR CARD (thích hợp cho cả 3 tab) =================
   Widget _buildCalendarCard(
       Map<String, int> dailyTotals, int maxDaily, Color accentColor) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -467,47 +524,187 @@ class _StatisticsScreenState extends State<StatisticsScreen>
       ),
       child: Column(
         children: [
+          // Period navigation — dùng chung cho Tuần / Tháng / Năm
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _calNavBtn(Icons.chevron_left, () {
-                setState(() => _calendarMonth = DateTime(
-                    _calendarMonth.year, _calendarMonth.month - 1));
-              }),
+              _calNavBtn(Icons.chevron_left, _prevPeriod),
               Text(
-                'Tháng ${_calendarMonth.month} / ${_calendarMonth.year}',
+                _periodNavLabel,
                 style: GoogleFonts.inter(
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
                   color: const Color(0xff1F2937),
                 ),
               ),
-              _calNavBtn(Icons.chevron_right, () {
-                setState(() => _calendarMonth = DateTime(
-                    _calendarMonth.year, _calendarMonth.month + 1));
-              }),
+              _calNavBtn(Icons.chevron_right, _nextPeriod),
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            children: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
-                .map((d) => Expanded(
-                      child: Center(
-                        child: Text(
-                          d,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[400],
+          if (selectedTab == 1) ...[
+            // Tháng: hiện calendar grid
+            Row(
+              children: ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+                  .map((d) => Expanded(
+                        child: Center(
+                          child: Text(
+                            d,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[400],
+                            ),
                           ),
                         ),
-                      ),
-                    ))
-                .toList(),
-          ),
-          const SizedBox(height: 8),
-          _buildCalendarGrid(dailyTotals, maxDaily, accentColor),
+                      ))
+                  .toList(),
+            ),
+            const SizedBox(height: 8),
+            _buildCalendarGrid(dailyTotals, maxDaily, accentColor),
+          ] else if (selectedTab == 0)
+            // Tuần: hiện 7 cột Th2–CN
+            _buildWeekBars(dailyTotals, maxDaily, accentColor)
+          else
+            // Năm: hiện 12 cột Th1–Th12
+            _buildYearBars(accentColor),
         ],
+      ),
+    );
+  }
+
+  /// Tuần: 7 cột Mon–Sun
+  Widget _buildWeekBars(
+      Map<String, int> dailyTotals, int maxDaily, Color accentColor) {
+    final (start, _) = _dateRange;
+    final labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    return SizedBox(
+      height: 140,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: List.generate(7, (i) {
+          final day = start.add(Duration(days: i));
+          final key =
+              '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+          final val = dailyTotals[key] ?? 0;
+          final ratio = maxDaily > 0 ? (val / maxDaily).clamp(0.0, 1.0) : 0.0;
+          final isToday = day.year == DateTime.now().year &&
+              day.month == DateTime.now().month &&
+              day.day == DateTime.now().day;
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (val > 0)
+                    Text(
+                      Formatters.currencyCompact(val.toDouble()),
+                      style: GoogleFonts.inter(
+                          fontSize: 9,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w600),
+                    ),
+                  const SizedBox(height: 4),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeOut,
+                    height: math.max(4.0, 90 * ratio),
+                    decoration: BoxDecoration(
+                      color: isToday
+                          ? accentColor
+                          : accentColor.withOpacity(0.35),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    labels[i],
+                    style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: isToday
+                            ? accentColor
+                            : Colors.grey[500],
+                        fontWeight: isToday
+                            ? FontWeight.w700
+                            : FontWeight.w500),
+                  ),
+                  Text(
+                    '${day.day}',
+                    style: GoogleFonts.inter(
+                        fontSize: 9, color: Colors.grey[400]),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  /// Năm: 12 cột Th1–Th12
+  Widget _buildYearBars(Color accentColor) {
+    final yearTotals = context
+        .read<TransactionProvider>()
+        .monthlyTotalsForYear(
+            _typeTab == 0
+                ? model.TransactionType.expense
+                : model.TransactionType.income,
+            _currentPeriod.year);
+    final maxVal = yearTotals.values.fold(0, (a, b) => a > b ? a : b);
+    final now = DateTime.now();
+    return SizedBox(
+      height: 140,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: yearTotals.entries.toList().asMap().entries.map((entry) {
+          final item = entry.value;
+          final month = int.parse(item.key.split('-')[1]);
+          final val = item.value;
+          final ratio = maxVal > 0 ? (val / maxVal).clamp(0.0, 1.0) : 0.0;
+          final isCurrent = _currentPeriod.year == now.year &&
+              month == now.month;
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (val > 0)
+                    Text(
+                      Formatters.currencyCompact(val.toDouble()),
+                      style: GoogleFonts.inter(
+                          fontSize: 8,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w600),
+                    ),
+                  const SizedBox(height: 4),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeOut,
+                    height: math.max(4.0, 90 * ratio),
+                    decoration: BoxDecoration(
+                      color: isCurrent
+                          ? accentColor
+                          : accentColor.withOpacity(0.35),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'T$month',
+                    style: GoogleFonts.inter(
+                        fontSize: 9,
+                        color: isCurrent ? accentColor : Colors.grey[500],
+                        fontWeight: isCurrent
+                            ? FontWeight.w700
+                            : FontWeight.w500),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -531,7 +728,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -572,7 +769,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
           ),
           const SizedBox(height: 12),
           if (dayTrans.isEmpty)
-            Text('Không có giao dịch',
+            Text(context.l10n.noTransactionOnDay,
                 style: GoogleFonts.inter(
                     color: Colors.grey[400], fontSize: 13))
           else
@@ -685,7 +882,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -801,7 +998,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -1020,7 +1217,7 @@ class _StatisticsScreenState extends State<StatisticsScreen>
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(

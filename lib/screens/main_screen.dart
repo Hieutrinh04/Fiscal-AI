@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:provider/provider.dart';
+import '../providers/settings_provider.dart';
+import '../l10n/app_localizations.dart';
 
 import 'home/home_screen.dart';
 import 'wallet/wallet_screen.dart';
@@ -67,13 +70,13 @@ class _MainScreenState extends State<MainScreen> {
           height: 70,
           child: Row(
             children: [
-              _navItem(0, Iconsax.home, "Trang chủ"),
-              _navItem(1, Iconsax.wallet, "Ví tiền"),
+              _navItem(0, Iconsax.home, context.l10n.navHome),
+              _navItem(1, Iconsax.wallet, context.l10n.navWallet),
 
               const SizedBox(width: 40),
 
-              _navItem(2, Iconsax.chart, "Thống kê"),
-              _navItem(3, Iconsax.setting, "Cài đặt"),
+              _navItem(2, Iconsax.chart, context.l10n.navStatistics),
+              _navItem(3, Iconsax.setting, context.l10n.navSettings),
             ],
           ),
         ),
@@ -84,6 +87,8 @@ class _MainScreenState extends State<MainScreen> {
   /// ================= NAV ITEM =================
   Widget _navItem(int index, IconData icon, String label) {
     final isActive = currentIndex == index;
+    final isDark = context.read<SettingsProvider>().darkModeEnabled;
+    final inactiveColor = isDark ? Colors.grey[500]! : Colors.grey;
 
     return Expanded(
       child: InkWell(
@@ -103,21 +108,15 @@ class _MainScreenState extends State<MainScreen> {
               Icon(
                 icon,
                 size: 24,
-                color: isActive
-                    ? const Color(0xff2F80ED)
-                    : Colors.grey,
+                color: isActive ? const Color(0xff2F80ED) : inactiveColor,
               ),
               const SizedBox(height: 4),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 11,
-                  fontWeight: isActive
-                      ? FontWeight.w600
-                      : FontWeight.normal,
-                  color: isActive
-                      ? const Color(0xff2F80ED)
-                      : Colors.grey,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                  color: isActive ? const Color(0xff2F80ED) : inactiveColor,
                 ),
               ),
             ],

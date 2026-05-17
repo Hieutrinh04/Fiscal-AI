@@ -12,6 +12,7 @@ import '../../models/category.dart' as model;
 import '../../utils/formatters.dart';
 import '../../utils/constants.dart';
 import '../../utils/snackbar.dart';
+import '../../l10n/app_localizations.dart';
 import '../bank/link_bank_screen.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -52,10 +53,9 @@ class _WalletScreenState extends State<WalletScreen> {
     final totalBalance = walletProvider.totalBalance;
     final latestInsight = aiProvider.insights.isNotEmpty
         ? aiProvider.insights.first.content
-        : "Hãy quản lý các ví của bạn một cách thông minh.";
+        : context.l10n.aiInsightFallback;
 
     return Scaffold(
-      backgroundColor: const Color(0xffF5F6FA),
       body: RefreshIndicator(
         onRefresh: () => _initData(),
         child: Column(
@@ -76,8 +76,8 @@ class _WalletScreenState extends State<WalletScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("Ví tiền",
-                          style: TextStyle(color: Colors.white, fontSize: 16)),
+                      Text(context.l10n.wallets,
+                          style: const TextStyle(color: Colors.white, fontSize: 16)),
                       GestureDetector(
                         onTap: () => setState(() => _hideBalance = !_hideBalance),
                         child: Icon(
@@ -89,8 +89,8 @@ class _WalletScreenState extends State<WalletScreen> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  const Text("Tổng số dư",
-                      style: TextStyle(color: Colors.white70, fontSize: 13)),
+                  Text(context.l10n.totalBalance,
+                      style: const TextStyle(color: Colors.white70, fontSize: 13)),
                   const SizedBox(height: 4),
                   Text(
                     _hideBalance
@@ -105,13 +105,13 @@ class _WalletScreenState extends State<WalletScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: _headerButton("Chuyển tiền", Iconsax.arrow_up, () {
+                        child: _headerButton(context.l10n.transferMoney, Iconsax.arrow_up, () {
                           _showTransferSheet(context, wallets);
                         }),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: _headerButton("Nhận tiền", Iconsax.arrow_down, () {
+                        child: _headerButton(context.l10n.addIncomeBtn, Iconsax.arrow_down, () {
                           Navigator.pushNamed(context, '/add-transaction');
                         }),
                       ),
@@ -143,7 +143,7 @@ class _WalletScreenState extends State<WalletScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text("AI gợi ý",
+                              Text(context.l10n.aiSuggestion,
                                   style: TextStyle(
                                       color: Colors.blue,
                                       fontWeight: FontWeight.w600,
@@ -167,8 +167,8 @@ class _WalletScreenState extends State<WalletScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("Tài khoản của tôi",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(context.l10n.wallets,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       GestureDetector(
                         onTap: () => _showAddWalletSheet(context),
                         child: const Text("+ Thêm",
@@ -186,9 +186,9 @@ class _WalletScreenState extends State<WalletScreen> {
 
                   /// ACCOUNT LIST
                   if (wallets.isEmpty)
-                    const Center(
-                        child: Text("Chưa có ví nào",
-                            style: TextStyle(color: Colors.grey)))
+                    Center(
+                        child: Text(context.l10n.noWalletYet,
+                            style: const TextStyle(color: Colors.grey)))
                   else
                     ...wallets.map((w) => GestureDetector(
                           onLongPress: () => _showWalletOptions(context, w),
@@ -203,14 +203,14 @@ class _WalletScreenState extends State<WalletScreen> {
                   const SizedBox(height: 20),
 
                   /// TRANSACTIONS
-                  const Text("Hoạt động gần đây",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  Text(context.l10n.recentTransactions,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                   const SizedBox(height: 10),
 
                   if (transactions.isEmpty)
-                    const Center(
-                        child: Text("Chưa có hoạt động nào",
-                            style: TextStyle(color: Colors.grey)))
+                    Center(
+                        child: Text(context.l10n.noTransactionInWallet,
+                            style: const TextStyle(color: Colors.grey)))
                   else
                     ...transactions.take(10).map((t) {
                       final isIncome = t.type == model.TransactionType.income;
@@ -262,7 +262,7 @@ class _WalletScreenState extends State<WalletScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -308,7 +308,7 @@ class _WalletScreenState extends State<WalletScreen> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -365,9 +365,9 @@ class _WalletScreenState extends State<WalletScreen> {
               top: 20,
               bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
             ),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -376,8 +376,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Chuyển tiền",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(context.l10n.transferMoney,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     GestureDetector(
                       onTap: () => Navigator.pop(ctx),
                       child: const Icon(Icons.close, color: Colors.grey),
@@ -385,7 +385,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                const Text("Từ tài khoản",
+                Text(context.l10n.from,
                     style: TextStyle(
                         color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
@@ -396,7 +396,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   onChanged: (val) => setModalState(() => fromWallet = val),
                 ),
                 const SizedBox(height: 16),
-                const Text("Đến tài khoản",
+                Text(context.l10n.to,
                     style: TextStyle(
                         color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
@@ -454,8 +454,8 @@ class _WalletScreenState extends State<WalletScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       elevation: 0,
                     ),
-                    child: const Text("Xác nhận chuyển",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    child: Text(context.l10n.confirm,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -473,9 +473,9 @@ class _WalletScreenState extends State<WalletScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -525,7 +525,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   _showEditWalletSheet(context, w);
                 },
                 icon: const Icon(Iconsax.edit, size: 18),
-                label: const Text("Chỉnh sửa ví"),
+                label: Text(context.l10n.editWallet),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xff2F80ED),
                   side: const BorderSide(color: Color(0xff2F80ED)),
@@ -545,7 +545,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   _showDeleteWalletConfirm(context, w);
                 },
                 icon: const Icon(Iconsax.trash, size: 18),
-                label: const Text("Xoá ví"),
+                label: Text(context.l10n.deleteWallet),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFEE2E2),
                   foregroundColor: const Color(0xFFEF4444),
@@ -579,9 +579,9 @@ class _WalletScreenState extends State<WalletScreen> {
               left: 20, right: 20, top: 20,
               bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
             ),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -590,8 +590,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Chỉnh sửa ví",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(context.l10n.editWallet,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     GestureDetector(
                       onTap: () => Navigator.pop(ctx),
                       child: const Icon(Icons.close, color: Colors.grey),
@@ -601,8 +601,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 20),
 
                 /// ICON VÍ
-                const Text("Icon ví",
-                    style: TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
+                Text(context.l10n.selectEmoji,
+                    style: const TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 8),
                 SizedBox(
                   height: 44,
@@ -632,8 +632,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 16),
 
                 /// TÊN VÍ
-                const Text("Tên ví",
-                    style: TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
+                Text(context.l10n.walletName,
+                    style: const TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: nameController,
@@ -642,8 +642,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 16),
 
                 /// LOẠI VÍ
-                const Text("Loại ví",
-                    style: TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
+                Text(context.l10n.walletType,
+                    style: const TextStyle(color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 8,
@@ -695,8 +695,8 @@ class _WalletScreenState extends State<WalletScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       elevation: 0,
                     ),
-                    child: const Text("Lưu thay đổi",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    child: Text(context.l10n.saveChanges,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -713,12 +713,12 @@ class _WalletScreenState extends State<WalletScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Xoá ví"),
-        content: Text('Bạn có chắc muốn xoá ví "${w.name}"? Tất cả giao dịch trong ví cũng sẽ bị xoá.'),
+        title: Text(context.l10n.deleteWallet),
+        content: Text(context.l10n.deleteWalletConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Huỷ"),
+            child: Text(context.l10n.cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -731,11 +731,11 @@ class _WalletScreenState extends State<WalletScreen> {
               } catch (e) {
                 if (mounted) {
                   Navigator.pop(ctx);
-                  AppSnackBar.error(context, 'Lỗi: $e');
+                  AppSnackBar.error(context, context.l10n.error + ': $e');
                 }
               }
             },
-            child: const Text("Xoá", style: TextStyle(color: Colors.red)),
+            child: Text(context.l10n.delete, style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -763,9 +763,9 @@ class _WalletScreenState extends State<WalletScreen> {
               top: 20,
               bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
             ),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -774,8 +774,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Thêm ví mới",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(context.l10n.addWallet,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     GestureDetector(
                       onTap: () => Navigator.pop(ctx),
                       child: const Icon(Icons.close, color: Colors.grey),
@@ -785,8 +785,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 20),
 
                 /// ICON VÍ
-                const Text("Icon ví",
-                    style: TextStyle(
+                Text(context.l10n.selectEmoji,
+                    style: const TextStyle(
                         color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 8),
                 SizedBox(
@@ -817,8 +817,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 16),
 
                 /// TÊN VÍ
-                const Text("Tên ví",
-                    style: TextStyle(
+                Text(context.l10n.walletName,
+                    style: const TextStyle(
                         color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
                 TextField(
@@ -828,8 +828,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 16),
 
                 /// LOẠI VÍ
-                const Text("Loại ví",
-                    style: TextStyle(
+                Text(context.l10n.walletType,
+                    style: const TextStyle(
                         color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
                 Wrap(
@@ -848,8 +848,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 const SizedBox(height: 16),
 
                 /// SỐ DƯ
-                const Text("Số dư ban đầu",
-                    style: TextStyle(
+                Text(context.l10n.initialBalance,
+                    style: const TextStyle(
                         color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
                 TextField(
@@ -868,7 +868,7 @@ class _WalletScreenState extends State<WalletScreen> {
                               amountController.text.replaceAll(',', '').replaceAll('.', '')) ??
                           0;
                       if (name.isEmpty) {
-                        AppSnackBar.warning(context, 'Vui lòng nhập tên ví');
+                        AppSnackBar.warning(context, context.l10n.enterWalletName);
                         return;
                       }
 
@@ -882,7 +882,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
                         if (mounted) {
                           Navigator.pop(ctx);
-                          AppSnackBar.success(context, 'Đã thêm ví "$name"');
+                          AppSnackBar.success(context, context.l10n.success);
 
                           /// Khuyến khích liên kết ngân hàng nếu là ví ngân hàng/điện tử
                           if (selectedType == 'Ngân hàng' || selectedType == 'Ví điện tử') {
@@ -892,7 +892,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         }
                       } catch (e) {
                         if (mounted) {
-                          AppSnackBar.error(context, 'Lỗi: $e');
+                          AppSnackBar.error(context, context.l10n.error + ': $e');
                         }
                       }
                     },
@@ -902,8 +902,8 @@ class _WalletScreenState extends State<WalletScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       elevation: 0,
                     ),
-                    child: const Text("Thêm ví",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    child: Text(context.l10n.addWallet,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -931,21 +931,21 @@ class _WalletScreenState extends State<WalletScreen> {
               child: const Icon(Icons.account_balance, color: Color(0xff2F80ED)),
             ),
             const SizedBox(width: 12),
-            const Expanded(child: Text('Liên kết ngân hàng', style: TextStyle(fontSize: 16))),
+            Expanded(child: Text(context.l10n.linkBank, style: const TextStyle(fontSize: 16))),
           ],
         ),
         content: Text(
-          'Liên kết ví "$walletName" với tài khoản ngân hàng để tự động đồng bộ số dư và giao dịch!',
+          context.l10n.linkBankSubtitle,
           style: const TextStyle(fontSize: 14, color: Colors.black87),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Để sau', style: TextStyle(color: Colors.grey)),
+            child: Text(context.l10n.cancel, style: const TextStyle(color: Colors.grey)),
           ),
           ElevatedButton.icon(
             icon: const Icon(Icons.link, size: 18),
-            label: const Text('Liên kết ngay'),
+            label: Text(context.l10n.linkBank),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xff2F80ED),
               foregroundColor: Colors.white,
@@ -973,9 +973,9 @@ class _WalletScreenState extends State<WalletScreen> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -989,7 +989,7 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            Text(t.note ?? t.category?.name ?? "Giao dịch",
+            Text(t.note ?? t.category?.name ?? context.l10n.addTransaction,
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             Text(Formatters.currency(t.amount.toDouble()),
                 style: TextStyle(
@@ -1009,7 +1009,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   _showEditTransactionSheet(context, t);
                 },
                 icon: const Icon(Iconsax.edit, size: 18),
-                label: const Text("Chỉnh sửa giao dịch"),
+                label: Text(context.l10n.editTransaction),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xff2F80ED),
                   side: const BorderSide(color: Color(0xff2F80ED)),
@@ -1027,7 +1027,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   _showDeleteConfirm(context, t);
                 },
                 icon: const Icon(Iconsax.trash, size: 18),
-                label: const Text("Xoá giao dịch"),
+                label: Text(context.l10n.deleteTransaction),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFEE2E2),
                   foregroundColor: const Color(0xFFEF4444),
@@ -1061,9 +1061,9 @@ class _WalletScreenState extends State<WalletScreen> {
               top: 20,
               bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
             ),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1072,8 +1072,8 @@ class _WalletScreenState extends State<WalletScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("Chỉnh sửa giao dịch",
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(context.l10n.editTransaction,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     GestureDetector(
                       onTap: () => Navigator.pop(ctx),
                       child: const Icon(Icons.close, color: Colors.grey),
@@ -1081,31 +1081,31 @@ class _WalletScreenState extends State<WalletScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                const Text("Tên giao dịch",
-                    style: TextStyle(
+                Text(context.l10n.note,
+                    style: const TextStyle(
                         color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
-                TextField(controller: titleCtrl, decoration: _inputDecoration('Tên giao dịch')),
+                TextField(controller: titleCtrl, decoration: _inputDecoration(context.l10n.enterNote)),
                 const SizedBox(height: 16),
-                const Text("Số tiền",
-                    style: TextStyle(
+                Text(context.l10n.amount,
+                    style: const TextStyle(
                         color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: amountCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: _inputDecoration('Số tiền (₫)'),
+                  decoration: _inputDecoration(context.l10n.amount),
                 ),
                 const SizedBox(height: 16),
-                const Text("Loại",
-                    style: TextStyle(
+                Text(context.l10n.walletType,
+                    style: const TextStyle(
                         color: Colors.blue, fontSize: 13, fontWeight: FontWeight.w500)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
                     Expanded(
                       child: ChoiceChip(
-                        label: const Text("Thu nhập"),
+                        label: Text(context.l10n.income),
                         selected: selectedType == model.TransactionType.income,
                         selectedColor: Colors.green.shade100,
                         onSelected: (_) =>
@@ -1115,7 +1115,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: ChoiceChip(
-                        label: const Text("Chi tiêu"),
+                        label: Text(context.l10n.expense),
                         selected: selectedType == model.TransactionType.expense,
                         selectedColor: Colors.red.shade100,
                         onSelected: (_) =>
@@ -1145,7 +1145,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       if (mounted) {
                         context.read<WalletProvider>().loadWallets();
                         Navigator.pop(ctx);
-                        AppSnackBar.success(context, 'Đã cập nhật giao dịch');
+                        AppSnackBar.success(context, context.l10n.success);
                       }
                     },
                     style: ElevatedButton.styleFrom(
@@ -1154,8 +1154,8 @@ class _WalletScreenState extends State<WalletScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       elevation: 0,
                     ),
-                    child: const Text("Lưu thay đổi",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    child: Text(context.l10n.saveChanges,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -1172,12 +1172,12 @@ class _WalletScreenState extends State<WalletScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Xoá giao dịch"),
-        content: Text('Bạn có chắc muốn xoá "${t.note ?? t.category?.name}"?'),
+        title: Text(context.l10n.deleteTransaction),
+        content: Text(context.l10n.deleteTransactionConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Hủy"),
+            child: Text(context.l10n.cancel),
           ),
           TextButton(
             onPressed: () async {
@@ -1185,10 +1185,10 @@ class _WalletScreenState extends State<WalletScreen> {
               if (mounted) {
                 context.read<WalletProvider>().loadWallets();
                 Navigator.pop(ctx);
-                AppSnackBar.success(context, 'Đã xoá giao dịch');
+                AppSnackBar.success(context, context.l10n.success);
               }
             },
-            child: const Text("Xoá", style: TextStyle(color: Colors.red)),
+            child: Text(context.l10n.delete, style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -1232,7 +1232,7 @@ class _WalletScreenState extends State<WalletScreen> {
         child: DropdownButton<T>(
           value: value,
           isExpanded: true,
-          hint: const Text("Chọn"),
+          hint: Text(context.l10n.selectWallet),
           items: items
               .map((e) => DropdownMenuItem<T>(value: e, child: Text(itemLabel(e))))
               .toList(),

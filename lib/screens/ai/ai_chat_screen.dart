@@ -6,10 +6,14 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../utils/snackbar.dart';
+import '../../utils/ai_context.dart';
+import '../../l10n/app_localizations.dart';
 import '../../widgets/markdown_text.dart';
 
 import '../../providers/ai_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../models/ai_chat_message.dart';
+import 'ai_chat_history_screen.dart';
 
 class AIChatScreen extends StatefulWidget {
   const AIChatScreen({super.key});
@@ -21,12 +25,9 @@ class AIChatScreen extends StatefulWidget {
 class _AIChatScreenState extends State<AIChatScreen> {
   final TextEditingController controller = TextEditingController();
 
-  final List<String> suggestions = [
-    "Tóm tắt chi tiêu của tôi",
-    "Làm sao giảm chi tiêu?",
-    "Tháng này tôi tiết kiệm bao nhiêu?",
-    "Có nên đầu tư không?",
-  ];
+  List<String> _suggestions(BuildContext context) => context.l10n.locale.languageCode == 'vi'
+      ? ['Tóm tắt chi tiêu của tôi', 'Làm sao giảm chi tiêu?', 'Tháng này tôi tiết kiệm bao nhiêu?', 'Có nên đầu tư không?']
+      : ['Summarize my expenses', 'How to cut spending?', 'How much did I save this month?', 'Should I invest?'];
 
   @override
   void initState() {
@@ -38,13 +39,27 @@ class _AIChatScreenState extends State<AIChatScreen> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        // Refresh snapshot tài chính (ví, thu/chi, mục tiêu) cho AI
+        _refreshFinancialContext();
         context.read<AiProvider>().loadChatHistory(user.id);
       });
     }
   }
 
+  /// Rebuild context tài chính từ dữ liệu mới nhất và inject vào AiProvider.
+  /// Gọi trước mỗi lần gửi để AI luôn có thông tin cập nhật.
+  void _refreshFinancialContext() {
+    final aiProvider = context.read<AiProvider>();
+    final authProvider = context.read<AuthProvider>();
+    aiProvider.setFinancialContext(AiContextBuilder.build(context));
+    aiProvider.setUserName(authProvider.profile?.fullName);
+  }
+
   void sendMessage(String text) {
     if (text.isEmpty) return;
+    // Refresh context ngay trước khi gửi — dữ liệu có thể đã đổi từ khi mở màn
+    _refreshFinancialContext();
     context.read<AiProvider>().sendMessage(text);
     controller.clear();
   }
@@ -61,8 +76,34 @@ class _AIChatScreenState extends State<AIChatScreen> {
   }
 
   void deleteChat() {
-    // TODO: Implement delete all in AiProvider
-    AppSnackBar.info(context, 'Tính năng đang được cập nhật');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xoá lịch sử chat'),
+        content: const Text('Bạn có chắc muốn xoá toàn bộ lịch sử trò chuyện?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Huỷ'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await context.read<AiProvider>().deleteAllChatHistory();
+              if (mounted) AppSnackBar.success(context, 'Đã xoá lịch sử chat');
+            },
+            child: const Text('Xoá', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void openHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AiChatHistoryScreen()),
+    );
   }
 
   @override
@@ -73,13 +114,9 @@ class _AIChatScreenState extends State<AIChatScreen> {
     final isSending = aiProvider.isSending;
 
     return Scaffold(
-      backgroundColor: const Color(0xffF3F4F6),
-
       /// ================= APPBAR =================
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
-        leading: const BackButton(color: Colors.black),
         title: Row(
           children: [
             const CircleAvatar(
@@ -91,23 +128,27 @@ class _AIChatScreenState extends State<AIChatScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text("Fiscal AI",
+                Text(context.l10n.aiAssistant,
                     style: GoogleFonts.inter(
-                        color: Colors.black,
                         fontSize: 16,
                         fontWeight: FontWeight.w700)),
-                Text("● Đang hoạt động",
+                Text(context.l10n.aiOnline,
                     style: GoogleFonts.inter(
-                        color: Colors.green.shade600, fontSize: 11)),
+                        color: Colors.green.shade400, fontSize: 11)),
               ],
             )
           ],
         ),
 
-        /// 🔥 NÚT 3 CHẤM
+        /// 🔥 ACTIONS
         actions: [
+          IconButton(
+            icon: const Icon(Iconsax.clock, size: 20),
+            tooltip: 'Lịch sử chat',
+            onPressed: openHistory,
+          ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.black),
+            icon: const Icon(Icons.more_vert),
             onSelected: (value) {
               switch (value) {
                 case "copy":
@@ -119,16 +160,16 @@ class _AIChatScreenState extends State<AIChatScreen> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: "copy",
-                child: Text("Sao chép cuộc trò chuyện"),
+                child: Text(context.l10n.copyChat),
               ),
               const PopupMenuDivider(),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: "delete",
                 child: Text(
-                  "Xóa lịch sử",
-                  style: TextStyle(color: Colors.red),
+                  context.l10n.deleteHistory,
+                  style: const TextStyle(color: Colors.red),
                 ),
               ),
             ],
@@ -222,13 +263,13 @@ class _AIChatScreenState extends State<AIChatScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          ...suggestions.map((text) => GestureDetector(
+          ..._suggestions(context).map((text) => GestureDetector(
                 onTap: () => sendMessage(text),
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
@@ -256,7 +297,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                           text,
                           style: GoogleFonts.inter(
                             fontSize: 14,
-                            color: const Color(0xff374151),
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -285,7 +326,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const SizedBox(
@@ -308,7 +349,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
             constraints:
                 BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
             decoration: BoxDecoration(
-              color: isUser ? const Color(0xff2F80ED) : Colors.white,
+              color: isUser ? const Color(0xff2F80ED) : Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 if (!isUser)
@@ -322,7 +363,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
             child: MarkdownText(
               msg.content,
               style: GoogleFonts.inter(
-                color: isUser ? Colors.white : const Color(0xff1F2937),
+                color: isUser ? Colors.white : Theme.of(context).colorScheme.onSurface,
                 fontSize: 14.5,
                 height: 1.55,
                 letterSpacing: 0.1,
@@ -341,10 +382,10 @@ class _AIChatScreenState extends State<AIChatScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withOpacity(0.06),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),
@@ -359,7 +400,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 onSubmitted: sendMessage,
                 style: GoogleFonts.inter(fontSize: 14.5),
                 decoration: InputDecoration(
-                  hintText: "Hỏi Fiscal AI về tài chính...",
+                  hintText: context.l10n.chatInputHint,
                   hintStyle: GoogleFonts.inter(
                     color: const Color(0xff9CA3AF),
                     fontSize: 14,

@@ -1,0 +1,74 @@
+@startuml 06 - Muc tieu Tiet kiem
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam ActivityBackgroundColor #E3F2FD
+skinparam ActivityBorderColor #1565C0
+skinparam ActivityDiamondBackgroundColor #FFF3E0
+skinparam ActivityDiamondBorderColor #E65100
+skinparam ArrowColor #1565C0
+skinparam NoteBackgroundColor #F3E5F5
+skinparam NoteBorderColor #6A1B9A
+skinparam swimlaneBorderColor #1565C0
+skinparam swimlaneBackgroundColor #E8F5E9
+
+title Sơ đồ hoạt động: Mục tiêu Tiết kiệm (Goals)
+
+|User|
+start
+:Mở GoalsScreen;
+
+|GoalProvider|
+:loadGoals() → SELECT * FROM goals\nWHERE user_id = ? (Supabase);
+:Phân loại: activeGoals / completedGoals;
+
+|GoalsScreen|
+:Hiển thị danh sách mục tiêu + thanh tiến độ;
+
+|User|
+:Chọn thao tác;
+
+if (Tạo mục tiêu mới?) then (Có)
+  :Nhập tên + số tiền mục tiêu + deadline;
+  |GoalProvider|
+  :createGoal() → INSERT INTO goals (Supabase);
+  :loadGoals() → notifyListeners();
+
+else (Không)
+  if (Nạp tiền vào mục tiêu?) then (Có)
+    |User|
+    :Chọn mục tiêu → Nhập số tiền nạp;
+    |GoalProvider|
+    :addAmount(goalId, amount);
+    :newAmount = currentAmount + amount;
+    if (newAmount ≥ targetAmount?) then (Đạt)
+      :status = GoalStatus.completed;
+      note right: Tự động đánh dấu\nhoàn thành
+    else (Chưa đạt)
+      :status = GoalStatus.active;
+    endif
+    :updateGoal() → UPDATE goals (Supabase);
+    :loadGoals() → notifyListeners();
+
+  else (Không)
+    if (Sửa mục tiêu?) then (Có)
+      |User|
+      :Thay đổi tên / số tiền / deadline;
+      |GoalProvider|
+      :updateGoal() → UPDATE goals (Supabase);
+      :loadGoals() → notifyListeners();
+
+    else (Xoá)
+      |User|
+      :Chọn mục tiêu → Xoá;
+      |GoalProvider|
+      :deleteGoal() → DELETE FROM goals (Supabase);
+      :_goals.removeWhere(id) → notifyListeners();
+    endif
+  endif
+endif
+
+|User|
+:Xem tiến độ cập nhật;
+stop
+
+@enduml

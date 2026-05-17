@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../utils/snackbar.dart';
+import '../../l10n/app_localizations.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -27,12 +28,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xffF3F4F6),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Iconsax.arrow_left, color: Colors.black87),
+          icon: const Icon(Iconsax.arrow_left),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -63,9 +63,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               const SizedBox(height: 30),
 
               /// TITLE
-              const Text(
-                'Quên mật khẩu?',
-                style: TextStyle(
+              Text(
+                context.l10n.forgotPasswordTitle,
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
@@ -73,8 +73,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
               const SizedBox(height: 8),
 
-              const Text(
-                'Nhập email đã đăng ký, chúng tôi sẽ gửi liên kết đặt lại mật khẩu cho bạn.',
+              Text(
+                context.l10n.forgotPasswordSubtitle,
                 style: TextStyle(
                   color: Colors.grey,
                   fontSize: 14,
@@ -88,7 +88,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: const [
                     BoxShadow(
@@ -106,7 +106,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       keyboardType: TextInputType.emailAddress,
                       enabled: !_sent,
                       decoration: InputDecoration(
-                        hintText: 'Email',
+                        hintText: context.l10n.email,
                         prefixIcon: const Icon(Iconsax.sms),
                         filled: true,
                         fillColor: const Color(0xffF9FAFB),
@@ -178,20 +178,24 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                     return;
                                   }
 
-                                  await auth.resetPassword(email: email);
+                                  final ok = await auth.resetPassword(email: email);
 
-                                  if (mounted) {
-                                    // Luôn hiện success (Supabase không
-                                    // tiết lộ email có tồn tại hay không)
+                                  if (!mounted) return;
+                                  if (ok) {
                                     setState(() => _sent = true);
+                                  } else {
+                                    AppSnackBar.error(
+                                      context,
+                                      auth.error ?? 'Gửi email thất bại. Vui lòng thử lại.',
+                                    );
                                   }
                                 },
                           child: auth.isLoading
                               ? const CircularProgressIndicator(
                                   color: Colors.white)
-                              : const Text(
-                                  'Gửi liên kết đặt lại mật khẩu',
-                                  style: TextStyle(fontSize: 15),
+                              : Text(
+                                  context.l10n.sendResetLink,
+                                  style: const TextStyle(fontSize: 15),
                                 ),
                         ),
                       ),
@@ -206,9 +210,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               Center(
                 child: GestureDetector(
                   onTap: () => Navigator.pop(context),
-                  child: const Text(
-                    'Quay lại đăng nhập',
-                    style: TextStyle(
+                  child: Text(
+                    context.l10n.alreadyHaveAccount,
+                    style: const TextStyle(
                       color: Color(0xff2F80ED),
                       fontWeight: FontWeight.w500,
                     ),

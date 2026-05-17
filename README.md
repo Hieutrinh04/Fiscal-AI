@@ -6,7 +6,7 @@
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter)](https://flutter.dev)
 [![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?logo=supabase)](https://supabase.com)
-[![ChatGPT AI](https://img.shields.io/badge)](https://ai.google.dev)
+[![Gemini AI](https://img.shields.io/badge/Gemini-1.5_Flash-4285F4?logo=google)](https://ai.google.dev)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 </div>
@@ -51,7 +51,7 @@
 - **Supabase Edge Functions** (Deno/TypeScript) – Webhook xử lý giao dịch ngân hàng
 
 ### AI
-- **[GEMINI](https://ai.google.dev)** – Phân tích tài chính và chat AI
+- **[Google Gemini 1.5 Flash](https://ai.google.dev)** – Phân tích tài chính và chat AI
 
 ### Thanh toán
 - **[SePay](https://sepay.vn)** – Cổng kết nối ngân hàng MSB, đồng bộ giao dịch qua VA/QR
@@ -208,7 +208,6 @@ flutter run -d chrome
 <img width="541" height="950" alt="image" src="https://github.com/user-attachments/assets/55bda090-b04e-4eb3-b685-67cd4076e67a" /> 
 <img width="548" height="940" alt="image" src="https://github.com/user-attachments/assets/39ac1af8-c7a8-4b3d-98bf-b86e5517d117" />
 <img width="547" height="947" alt="image" src="https://github.com/user-attachments/assets/e55f5ecd-5824-4cb9-8640-6c839ae66783" />
-
 
 ---
 

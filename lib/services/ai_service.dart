@@ -1,13 +1,15 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/env.dart';
 
 class AiService {
   final _client = Supabase.instance.client;
 
-  static const String _geminiApiKey = 'AIzaSyDrHJJDGwAGr0hymhLZX3qawD3ZwhtvLPE';
+  static String get _geminiApiKey => Env.geminiApiKey;
   static const String _model = 'gemini-2.5-flash-lite';
-  static const String _baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
+  static const String _baseUrl =
+      'https://generativelanguage.googleapis.com/v1beta/models';
 
   static const String _systemPrompt =
       'Bạn là Fiscal AI - trợ lý tài chính cá nhân thông minh. '
@@ -16,7 +18,7 @@ class AiService {
       'Nếu không có đủ dữ liệu, hãy xin thêm thông tin. '
       'Không đưa ra lời khuyên đầu tư chuyên nghiệp, chỉ gợi ý chung.';
 
-  /// Lịch sử chat cho multi-turn
+  /// Lịch sử chat cho multi-turn (Gemini format: {role: user|model, parts: [{text}]})
   final List<Map<String, dynamic>> _chatHistory = [];
 
   /// Rate limiting - tối thiểu 10s giữa các API call
@@ -84,7 +86,7 @@ class AiService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
         final candidates = data['candidates'] as List<dynamic>?;
 
         if (candidates != null && candidates.isNotEmpty) {
@@ -101,27 +103,22 @@ class AiService {
           /// lưu lịch sử (không block nếu fail)
           try {
             await _saveChatHistory(userId, message, aiReply);
-          } catch (_) {}
+          } catch (e) {
+            print('[AI_HISTORY] Lỗi lưu lịch sử: $e');
+          }
 
           return aiReply;
         }
       }
 
-      // 429: Không retry, fail ngay + hiện thời gian chờ
+      // 429: Rate limit
       if (response.statusCode == 429) {
         final retrySec = _parseRetryDelay(response.body);
         throw Exception('Gửi quá nhanh! Vui lòng đợi ${retrySec}s rồi gửi lại.');
       }
 
       // Lỗi khác
-      try {
-        final errorData = jsonDecode(response.body);
-        final errorMsg = errorData['error']?['message'] ?? 'Lỗi không xác định (${response.statusCode})';
-        throw Exception(errorMsg);
-      } catch (e) {
-        if (e is Exception) rethrow;
-        throw Exception('Lỗi không xác định (${response.statusCode})');
-      }
+      throw Exception(_parseGeminiError(response));
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('$e');
@@ -166,6 +163,16 @@ class AiService {
         .limit(limit);
 
     return List<Map<String, dynamic>>.from(data);
+  }
+
+  /// ===============================
+  /// 🔥 DELETE ALL CHAT HISTORY
+  /// ===============================
+  Future<void> deleteAllChatHistory(String userId) async {
+    await _client
+        .from('ai_chat_history')
+        .delete()
+        .eq('user_id', userId);
   }
 
   /// ===============================
@@ -323,7 +330,7 @@ class AiService {
 
       if (response.statusCode != 200) return null;
 
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
       final candidates = data['candidates'] as List<dynamic>?;
       if (candidates == null || candidates.isEmpty) return null;
 
@@ -340,7 +347,7 @@ class AiService {
   }
 
   /// ===============================
-  /// 🔥 HELPER: Call Gemini REST API (single turn) with retry
+  /// 🔥 HELPER: Call Gemini REST API (single turn)
   /// ===============================
   Future<String> _callGemini(String prompt) async {
     await _waitForRateLimit();
@@ -370,7 +377,7 @@ class AiService {
     );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
       final candidates = data['candidates'] as List<dynamic>?;
       if (candidates != null && candidates.isNotEmpty) {
         final content = candidates[0]['content'];
@@ -379,27 +386,28 @@ class AiService {
       }
     }
 
-    // 429: Không retry, fail ngay
     if (response.statusCode == 429) {
       final retrySec = _parseRetryDelay(response.body);
       throw Exception('Gửi quá nhanh! Vui lòng đợi ${retrySec}s rồi gửi lại.');
     }
 
-    // Lỗi khác
+    throw Exception(_parseGeminiError(response));
+  }
+
+  /// Parse lỗi từ Gemini response
+  String _parseGeminiError(http.Response response) {
     try {
-      final errorData = jsonDecode(response.body);
-      final errorMsg = errorData['error']?['message'] ?? 'Lỗi không xác định (${response.statusCode})';
-      throw Exception(errorMsg);
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('Lỗi không xác định (${response.statusCode})');
-    }
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      final msg = body['error']?['message'];
+      if (msg is String && msg.isNotEmpty) return msg;
+    } catch (_) {}
+    return 'Lỗi Gemini (${response.statusCode})';
   }
 
   /// Parse retry delay từ Gemini 429 response
   int _parseRetryDelay(String responseBody) {
     try {
-      // Gemini trả: "Please retry in 29.352435973s"
+      // Gemini: "Please retry in 29.352435973s"
       final match = RegExp(r'retry in ([\d.]+)s').firstMatch(responseBody);
       if (match != null) return double.parse(match.group(1)!).ceil();
       // Fallback: tìm retryDelay

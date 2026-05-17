@@ -1,6 +1,7 @@
 class Env {
   // Gemini API
-  static const String geminiApiKey = 'AIzaSyDDPBfoMC6Rl64PFwHyMJTWq0UKRKzYAXw';
+  // Lấy key tại: https://aistudio.google.com/app/apikey
+  static const String geminiApiKey = 'AIzaSyC0u7sXBpYEnLyTEWt_GOaIdV8YESo-F_s';
 
   // Qwen API (OpenAI Compatible)
   static const String qwenApiKey = '';

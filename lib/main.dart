@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'l10n/app_localizations.dart';
 
 import 'providers/auth_provider.dart';
 import 'providers/wallet_provider.dart';
@@ -27,36 +30,18 @@ import 'screens/bank/link_bank_screen.dart';
 import 'screens/friend/friends_screen.dart';
 import 'screens/fund/shared_funds_screen.dart';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
-
-/// 🔥 Flag: password recovery detected từ URL fragment
-bool _isPasswordRecoveryStartup = false;
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  /// 🔥 BƯỚC 1: Check URL TRƯỚC khi Supabase xử lý
-  /// Implicit flow: URL sẽ là http://localhost:3000#access_token=xxx&type=recovery
-  /// Supabase.initialize() sẽ đọc fragment, tạo session, rồi xóa fragment khỏi URL
-  /// Nên phải kiểm tra ở đây TRƯỚC
-  if (kIsWeb) {
-    final fragment = Uri.base.fragment;
-    debugPrint('[MAIN] URL=${Uri.base}');
-    debugPrint('[MAIN] Fragment=$fragment');
-    if (fragment.contains('type=recovery')) {
-      _isPasswordRecoveryStartup = true;
-      debugPrint('[MAIN] ✅ Password recovery detected from URL fragment!');
-    }
-  }
-
-  /// 🔥 BƯỚC 2: INIT SUPABASE với IMPLICIT flow
-  /// Implicit flow cho phép nhận passwordRecovery event từ URL fragment
-  /// (PKCE flow chỉ fire signedIn, KHÔNG fire passwordRecovery)
+  /// Init Supabase với PKCE flow (chuẩn cho mobile).
+  /// Deep link `com.example.wallet://login-callback?code=xxx` sẽ được
+  /// supabase_flutter tự bắt qua AppLinks và fire `passwordRecovery`
+  /// hoặc `signedIn` tương ứng.
   await Supabase.initialize(
     url: 'https://opwcjrmxzovfgqrjfrhg.supabase.co',
     anonKey: 'sb_publishable_prW4ZbdneWPtdpcwDhvcRQ_gBxbmkGt',
     authOptions: const FlutterAuthClientOptions(
-      authFlowType: AuthFlowType.implicit,
+      authFlowType: AuthFlowType.pkce,
     ),
   );
 
@@ -108,13 +93,6 @@ class _AppViewState extends State<AppView> {
   @override
   void initState() {
     super.initState();
-
-    /// 🔥 Cold start: kiểm tra flag từ main() (URL fragment chứa type=recovery)
-    if (_isPasswordRecoveryStartup) {
-      _isPasswordRecovery = true;
-      debugPrint('[MAIN] Cold start → hiện ResetPasswordScreen');
-    }
-
     _authStream = Supabase.instance.client.auth.onAuthStateChange;
 
     /// 🔥 Lắng nghe auth events
@@ -127,19 +105,28 @@ class _AppViewState extends State<AppView> {
       final authProvider = context.read<AuthProvider>();
       authProvider.handleAuthStateChange(event, session);
 
-      /// Routing dựa trên event
+      /// Routing dựa trên event.
+      /// 🔥 Dùng pushAndRemoveUntil để XOÁ "Page not found" route mà Flutter
+      /// tự đẩy vào khi Android intent-filter forward deep link URL
+      /// (`com.example.wallet://login-callback?code=...`) thành initial route.
       if (event == AuthChangeEvent.passwordRecovery) {
-        /// 🔥 Implicit flow: Supabase fire passwordRecovery từ URL fragment
         setState(() => _isPasswordRecovery = true);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _navigatorKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const ResetPasswordScreen()),
+            (route) => false,
+          );
+        });
       } else if (event == AuthChangeEvent.signedIn) {
-        if (!_isPasswordRecovery) {
-          /// OAuth / đăng nhập thường → rebuild để chuyển sang home
-          setState(() {});
-        }
-        /// Nếu _isPasswordRecovery = true → giữ nguyên ResetPasswordScreen
+        if (_isPasswordRecovery) return; // đang reset password → giữ nguyên
+        setState(() {});
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _navigatorKey.currentState?.pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const MainScreen()),
+            (route) => false,
+          );
+        });
       } else if (event == AuthChangeEvent.signedOut) {
-        /// 🔥 setState rebuild → build() thấy session == null → hiện LoginScreen
-        /// Dùng pushAndRemoveUntil để xóa hết stack (dialog, screen cũ)
         setState(() => _isPasswordRecovery = false);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _navigatorKey.currentState?.pushAndRemoveUntil(
@@ -169,6 +156,14 @@ class _AppViewState extends State<AppView> {
       title: 'Wallet AI',
       debugShowCheckedModeBanner: false,
       navigatorKey: _navigatorKey,
+      locale: context.watch<SettingsProvider>().locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
 
       /// 🔥 FIX SCALE UI
       builder: (context, child) {
@@ -205,9 +200,14 @@ class _AppViewState extends State<AppView> {
       },
 
       /// 🔥 FALLBACK
+      /// Khi Android deep link `com.example.wallet://login-callback?code=...`
+      /// mở app, Flutter set initial route là `/login-callback?code=...`. Route
+      /// này không tồn tại → rơi vào fallback. Hiện spinner trong lúc
+      /// supabase_flutter exchange code (vài chục ms) rồi auth listener sẽ
+      /// `pushAndRemoveUntil` sang màn đúng.
       onUnknownRoute: (_) => MaterialPageRoute(
         builder: (_) => const Scaffold(
-          body: Center(child: Text("Page not found")),
+          body: Center(child: CircularProgressIndicator()),
         ),
       ),
     );

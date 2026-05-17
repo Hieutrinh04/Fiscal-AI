@@ -7,6 +7,7 @@ import '../../providers/wallet_provider.dart';
 import '../../providers/goal_provider.dart';
 import '../../providers/ai_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../l10n/app_localizations.dart';
 
 import '../ai/ai_chat_screen.dart';
 import '../wallet/wallet_screen.dart';
@@ -40,97 +41,95 @@ class _SettingScreenState extends State<SettingScreen> {
     final authProvider = context.watch<AuthProvider>();
     final settingsProvider = context.watch<SettingsProvider>();
     final profile = authProvider.profile;
-    final userEmail = Supabase.instance.client.auth.currentUser?.email ?? 'Đang tải...';
+    final userEmail = Supabase.instance.client.auth.currentUser?.email ?? context.l10n.loading;
 
     return Scaffold(
-      backgroundColor: settingsProvider.darkModeEnabled
-          ? const Color(0xFF1A1A2E)
-          : const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.only(bottom: 100),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(20, 16, 20, 12),
-                child: Text('Cài đặt',
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                child: Text(context.l10n.settings,
                     style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A2E))),
+                        color: Theme.of(context).colorScheme.onSurface)),
               ),
               _buildProfileCard(profile, userEmail),
 
-              _buildSectionTitle('TÀI KHOẢN'),
+              _buildSectionTitle(context.l10n.account),
               _buildSettingsGroup([
                 _buildSettingTile(
                   icon: Icons.person_outline,
-                  title: 'Thông tin cá nhân',
+                  title: context.l10n.personalInfo,
                   subtitle: profile != null
                       ? '${profile.fullName}, $userEmail'
-                      : 'Đang tải...',
+                      : context.l10n.loading,
                   onTap: () => _showEditProfileModal(context, profile, userEmail),
                 ),
                 _buildDivider(),
                 _buildSettingTile(
                   icon: Icons.account_balance_wallet_outlined,
-                  title: 'Quản lý ví',
-                  subtitle: 'Tài khoản ngân hàng, ví điện tử',
+                  title: context.l10n.manageWallets,
+                  subtitle: context.l10n.manageWalletsSubtitle,
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const WalletScreen())),
                 ),
                 _buildDivider(),
                 _buildSettingTile(
                   icon: Icons.flag_outlined,
-                  title: 'Mục tiêu tài chính',
-                  subtitle: 'Theo dõi tiến độ tiết kiệm',
+                  title: context.l10n.goalsTitle,
+                  subtitle: context.l10n.financialFreedom,
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const GoalsScreen())),
                 ),
                 _buildDivider(),
                 _buildSettingTile(
                   icon: Icons.account_balance_outlined,
-                  title: 'Liên kết ngân hàng',
-                  subtitle: 'Kết nối tài khoản ngân hàng qua SePay',
-                  trailing: _buildBadge('Mới'),
+                  title: context.l10n.linkBank,
+                  subtitle: context.l10n.linkBankSubtitle,
+                  trailing: _buildBadge('New'),
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const LinkBankScreen())),
                 ),
                 _buildDivider(),
                 _buildSettingTile(
                   icon: Icons.people_outline,
-                  title: 'Bạn bè',
-                  subtitle: 'Quản lý danh sách bạn bè',
+                  title: context.l10n.friends,
+                  subtitle: context.l10n.friendsSubtitle,
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const FriendsScreen())),
                 ),
                 _buildDivider(),
                 _buildSettingTile(
                   icon: Icons.savings_outlined,
-                  title: 'Quỹ chung',
-                  subtitle: 'Góp quỹ cùng bạn bè',
-                  trailing: _buildBadge('Mới'),
+                  title: context.l10n.sharedFunds,
+                  subtitle: context.l10n.sharedFundsSubtitle,
+                  trailing: _buildBadge('New'),
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const SharedFundsScreen())),
                 ),
               ]),
 
-              _buildSectionTitle('TIỆN ÍCH'),
+              _buildSectionTitle(context.l10n.preferences),
               _buildSettingsGroup([
                 _buildSettingTile(
                   icon: Icons.smart_toy_outlined,
                   title: 'AI Advisor',
-                  subtitle: 'Tư vấn tài chính AI',
-                  trailing: _buildBadge('Mới'),
+                  subtitle: context.l10n.aiChat,
+                  trailing: _buildBadge('New'),
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const AIChatScreen())),
                 ),
                 _buildDivider(),
                 _buildSwitchTile(
                   icon: Icons.notifications_outlined,
-                  title: 'Thông báo',
-                  subtitle: settingsProvider.notificationEnabled ? 'Đang bật' : 'Đang tắt',
+                  title: context.l10n.notifications,
+                  subtitle: settingsProvider.notificationEnabled ? context.l10n.darkModeOn : context.l10n.darkModeOff,
                   value: settingsProvider.notificationEnabled,
                   onChanged: (val) =>
                       context.read<SettingsProvider>().setNotificationEnabled(val),
@@ -138,8 +137,8 @@ class _SettingScreenState extends State<SettingScreen> {
                 _buildDivider(),
                 _buildSwitchTile(
                   icon: Icons.dark_mode_outlined,
-                  title: 'Chế độ tối',
-                  subtitle: settingsProvider.darkModeEnabled ? 'Đang bật' : 'Đang tắt',
+                  title: context.l10n.darkMode,
+                  subtitle: settingsProvider.darkModeEnabled ? context.l10n.darkModeOn : context.l10n.darkModeOff,
                   value: settingsProvider.darkModeEnabled,
                   onChanged: (val) =>
                       context.read<SettingsProvider>().setDarkModeEnabled(val),
@@ -147,35 +146,35 @@ class _SettingScreenState extends State<SettingScreen> {
                 _buildDivider(),
                 _buildSettingTile(
                   icon: Icons.language,
-                  title: 'Ngôn ngữ',
-                  subtitle: 'VN: Tiếng Việt',
+                  title: context.l10n.language,
+                  subtitle: settingsProvider.languageCode == 'vi' ? '🇻🇳 Tiếng Việt' : '🇺🇸 English',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const LanguageScreen())),
                 ),
               ]),
 
-              _buildSectionTitle('KHÁC'),
+              _buildSectionTitle(context.l10n.other),
               _buildSettingsGroup([
                 _buildSettingTile(
                   icon: Icons.shield_outlined,
-                  title: 'Bảo mật',
-                  subtitle: 'Mật khẩu, xác thực 2 lớp',
+                  title: context.l10n.security,
+                  subtitle: context.l10n.securitySubtitle,
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const SecurityScreen())),
                 ),
                 _buildDivider(),
                 _buildSettingTile(
                   icon: Icons.help_outline,
-                  title: 'Trợ giúp',
-                  subtitle: 'FAQ, liên hệ hỗ trợ',
+                  title: context.l10n.help,
+                  subtitle: context.l10n.helpSubtitle,
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const HelpScreen())),
                 ),
                 _buildDivider(),
                 _buildSettingTile(
                   icon: Icons.info_outline,
-                  title: 'Về ứng dụng',
-                  subtitle: 'Phiên bản 1.0.0',
+                  title: context.l10n.about,
+                  subtitle: context.l10n.aboutSubtitle,
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const AboutScreen())),
                 ),
@@ -190,9 +189,11 @@ class _SettingScreenState extends State<SettingScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () => _showLogoutDialog(context),
                     icon: const Icon(Icons.logout, size: 20),
-                    label: const Text('Đăng xuất'),
+                    label: Text(context.l10n.logout),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFEE2E2),
+                      backgroundColor: Theme.of(context).brightness == Brightness.dark
+                          ? const Color(0xFF3B1A1A)
+                          : const Color(0xFFFEE2E2),
                       foregroundColor: const Color(0xFFEF4444),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -210,14 +211,15 @@ class _SettingScreenState extends State<SettingScreen> {
 
   // ================= PROFILE CARD =================
   Widget _buildProfileCard(dynamic profile, String email) {
-    final name = profile?.fullName ?? 'Người dùng';
+    final name = profile?.fullName ?? context.l10n.loading;
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
 
+    final cardBg = Theme.of(context).cardColor;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          color: cardBg, borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: () => _showEditProfileModal(context, profile, email),
         child: Row(
@@ -268,9 +270,9 @@ class _SettingScreenState extends State<SettingScreen> {
             EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: Container(
           padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
                 width: 40,
@@ -279,8 +281,8 @@ class _SettingScreenState extends State<SettingScreen> {
                     color: Colors.grey[300],
                     borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 16),
-            const Text('Chỉnh sửa hồ sơ',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(context.l10n.editProfile,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             Stack(children: [
               CircleAvatar(
@@ -311,7 +313,7 @@ class _SettingScreenState extends State<SettingScreen> {
             TextField(
                 controller: nameCtrl,
                 decoration: InputDecoration(
-                    labelText: 'Họ và tên',
+                    labelText: context.l10n.fullName,
                     prefixIcon: const Icon(Icons.person_outline),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)))),
@@ -340,7 +342,7 @@ class _SettingScreenState extends State<SettingScreen> {
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12))),
-                  child: const Text('Lưu thay đổi'),
+                  child: Text(context.l10n.saveChanges),
                 )),
             const SizedBox(height: 12),
           ]),
@@ -363,7 +365,7 @@ class _SettingScreenState extends State<SettingScreen> {
   Widget _buildSettingsGroup(List<Widget> children) => Container(
         margin: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(16)),
+            color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(16)),
         child: Column(children: children),
       );
 
@@ -373,11 +375,14 @@ class _SettingScreenState extends State<SettingScreen> {
       required String subtitle,
       Widget? trailing,
       required VoidCallback onTap}) {
+    final iconBg = Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF1A3558)
+        : const Color(0xFFEFF6FF);
     return ListTile(
       leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
+              color: iconBg,
               borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, color: const Color(0xFF3B82F6), size: 20)),
       title: Text(title,
@@ -395,11 +400,14 @@ class _SettingScreenState extends State<SettingScreen> {
       required String subtitle,
       required bool value,
       required ValueChanged<bool> onChanged}) {
+    final iconBg = Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF1A3558)
+        : const Color(0xFFEFF6FF);
     return ListTile(
       leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
+              color: iconBg,
               borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, color: const Color(0xFF3B82F6), size: 20)),
       title: Text(title,
@@ -434,19 +442,18 @@ class _SettingScreenState extends State<SettingScreen> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Đăng xuất'),
-        content: const Text('Bạn có chắc chắn muốn đăng xuất khỏi tài khoản?'),
+        title: Text(context.l10n.logoutConfirmTitle),
+        content: Text(context.l10n.logoutConfirmMsg),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+              onPressed: () => Navigator.pop(context), child: Text(context.l10n.cancel)),
           TextButton(
               onPressed: () async {
-                Navigator.pop(context); // đóng dialog trước
+                Navigator.pop(context);
                 await context.read<AuthProvider>().signOut();
-                // Auth listener sẽ tự chuyển về login
               },
-              child: const Text('Đăng xuất',
-                  style: TextStyle(color: Color(0xFFEF4444)))),
+              child: Text(context.l10n.logout,
+                  style: const TextStyle(color: Color(0xFFEF4444)))),
         ],
       ),
     );
@@ -460,41 +467,105 @@ class _SettingScreenState extends State<SettingScreen> {
 // ============================================================
 
 // ---- NGÔN NGỮ ----
-class LanguageScreen extends StatefulWidget {
+class LanguageScreen extends StatelessWidget {
   const LanguageScreen({super.key});
-  @override
-  State<LanguageScreen> createState() => _LanguageScreenState();
-}
 
-class _LanguageScreenState extends State<LanguageScreen> {
-  String _selected = 'vi';
-  final _languages = [
-    {'code': 'vi', 'name': 'Tiếng Việt', 'flag': '🇻🇳'},
-    {'code': 'en', 'name': 'English', 'flag': '🇺🇸'},
-    {'code': 'ja', 'name': '日本語', 'flag': '🇯🇵'},
-    {'code': 'ko', 'name': '한국어', 'flag': '🇰🇷'},
-    {'code': 'zh', 'name': '中文', 'flag': '🇨🇳'},
+  static const _languages = [
+    {'code': 'vi', 'name': 'Tiếng Việt', 'sub': 'Vietnamese'},
+    {'code': 'en', 'name': 'English', 'sub': 'Tiếng Anh'},
   ];
+
+  static Widget _flagWidget(String code) {
+    if (code == 'vi') {
+      return Container(
+        width: 48,
+        height: 34,
+        decoration: BoxDecoration(
+          color: const Color(0xFFDA251D),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Center(
+          child: Text('★', style: TextStyle(color: Color(0xFFFFCD00), fontSize: 20)),
+        ),
+      );
+    }
+    return Container(
+      width: 48,
+      height: 34,
+      decoration: BoxDecoration(
+        color: const Color(0xFF012169),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: const Center(
+        child: Text('EN', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+    final currentCode = settings.languageCode;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(title: const Text('Ngôn ngữ', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.white, foregroundColor: const Color(0xFF1A1A2E), elevation: 0),
+      appBar: AppBar(
+        title: Text(context.l10n.selectLanguage,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        elevation: 0,
+      ),
       body: ListView.separated(
         padding: const EdgeInsets.all(20),
         itemCount: _languages.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
         itemBuilder: (_, i) {
           final lang = _languages[i];
-          final isSelected = _selected == lang['code'];
-          return Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: isSelected ? Border.all(color: const Color(0xFF3B82F6), width: 2) : null),
-            child: ListTile(
-              leading: Text(lang['flag']!, style: const TextStyle(fontSize: 28)),
-              title: Text(lang['name']!, style: TextStyle(fontWeight: FontWeight.w600, color: isSelected ? const Color(0xFF3B82F6) : null)),
-              trailing: isSelected ? const Icon(Icons.check_circle, color: Color(0xFF3B82F6)) : null,
-              onTap: () => setState(() => _selected = lang['code']!),
+          final isSelected = currentCode == lang['code'];
+          return InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () async {
+              await context
+                  .read<SettingsProvider>()
+                  .setLocale(Locale(lang['code']!));
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: BorderRadius.circular(14),
+                border: isSelected
+                    ? Border.all(color: const Color(0xFF3B82F6), width: 2)
+                    : Border.all(color: Colors.transparent),
+              ),
+              child: Row(
+                children: [
+                  _flagWidget(lang['code']!),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(lang['name']!,
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                                color: isSelected
+                                    ? const Color(0xFF3B82F6)
+                                    : null)),
+                        Text(lang['sub']!,
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.5))),
+                      ],
+                    ),
+                  ),
+                  if (isSelected)
+                    const Icon(Icons.check_circle,
+                        color: Color(0xFF3B82F6), size: 22),
+                ],
+              ),
             ),
           );
         },
@@ -517,8 +588,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(title: const Text('Bảo mật', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.white, foregroundColor: const Color(0xFF1A1A2E), elevation: 0),
+      appBar: AppBar(title: Text(context.l10n.securityTitle, style: const TextStyle(fontWeight: FontWeight.bold)), elevation: 0),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -538,7 +608,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
           _group([
             ListTile(
               leading: _iconBox(Icons.lock_outline),
-              title: const Text('Đổi mật khẩu', style: TextStyle(fontWeight: FontWeight.w600)),
+              title: Builder(builder: (ctx) => Text(ctx.l10n.changePassword, style: const TextStyle(fontWeight: FontWeight.w600))),
               subtitle: const Text('Cập nhật lần cuối: 30 ngày trước', style: TextStyle(fontSize: 12, color: Colors.grey)),
               trailing: const Icon(Icons.chevron_right, color: Colors.grey),
               onTap: () {},
@@ -546,7 +616,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Divider(height: 1)),
             SwitchListTile(
               secondary: _iconBox(Icons.fingerprint),
-              title: const Text('Sinh trắc học', style: TextStyle(fontWeight: FontWeight.w600)),
+              title: Builder(builder: (ctx) => Text(ctx.l10n.twoFactor, style: const TextStyle(fontWeight: FontWeight.w600))),
               subtitle: const Text('Vân tay / Face ID', style: TextStyle(fontSize: 12, color: Colors.grey)),
               value: _biometricEnabled, activeColor: const Color(0xFF3B82F6),
               onChanged: (v) => setState(() => _biometricEnabled = v),
@@ -554,7 +624,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
             const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Divider(height: 1)),
             SwitchListTile(
               secondary: _iconBox(Icons.security),
-              title: const Text('Xác thực 2 lớp', style: TextStyle(fontWeight: FontWeight.w600)),
+              title: Builder(builder: (ctx) => Text(ctx.l10n.twoFactor, style: const TextStyle(fontWeight: FontWeight.w600))),
               subtitle: const Text('SMS / Email OTP', style: TextStyle(fontSize: 12, color: Colors.grey)),
               value: _twoFactorEnabled, activeColor: const Color(0xFF3B82F6),
               onChanged: (v) => setState(() => _twoFactorEnabled = v),
@@ -565,14 +635,17 @@ class _SecurityScreenState extends State<SecurityScreen> {
     );
   }
 
-  Widget _iconBox(IconData icon) => Container(
-    padding: const EdgeInsets.all(8),
-    decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10)),
-    child: Icon(icon, color: const Color(0xFF3B82F6), size: 20),
-  );
+  Widget _iconBox(IconData icon) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(color: isDark ? const Color(0xFF1A3558) : const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10)),
+      child: Icon(icon, color: const Color(0xFF3B82F6), size: 20),
+    );
+  }
 
   Widget _group(List<Widget> children) => Container(
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+    decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(16)),
     child: Column(children: children),
   );
 }
@@ -590,12 +663,11 @@ class HelpScreen extends StatelessWidget {
       {'q': 'AI Advisor hoạt động thế nào?', 'a': 'AI phân tích chi tiêu và đưa ra gợi ý tài chính cá nhân hóa.'},
     ];
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(title: const Text('Trợ giúp', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.white, foregroundColor: const Color(0xFF1A1A2E), elevation: 0),
+      appBar: AppBar(title: Text(context.l10n.helpTitle, style: const TextStyle(fontWeight: FontWeight.bold)), elevation: 0),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          TextField(decoration: InputDecoration(hintText: 'Tìm kiếm...', prefixIcon: const Icon(Icons.search), border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none), filled: true, fillColor: Colors.white)),
+          TextField(decoration: InputDecoration(hintText: 'Tìm kiếm...', prefixIcon: const Icon(Icons.search), border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none), filled: true, fillColor: Theme.of(context).cardColor)),
           const SizedBox(height: 16),
           Row(children: [
             _action(Icons.email_outlined, 'Email'),
@@ -607,29 +679,30 @@ class HelpScreen extends StatelessWidget {
           const SizedBox(height: 20),
           const Text('Câu hỏi thường gặp', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-          ...faqs.map((f) => Container(
+          ...faqs.map((f) => Builder(builder: (ctx) => Container(
             margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+            decoration: BoxDecoration(color: Theme.of(ctx).cardColor, borderRadius: BorderRadius.circular(14)),
             child: ExpansionTile(
               title: Text(f['q']!, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
               children: [Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16), child: Text(f['a']!, style: const TextStyle(fontSize: 13, color: Colors.grey)))],
             ),
-          )),
+          ))),
+
         ]),
       ),
     );
   }
 
   Widget _action(IconData icon, String label) => Expanded(
-    child: Container(
+    child: Builder(builder: (context) => Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(14)),
       child: Column(children: [
         Icon(icon, color: const Color(0xFF3B82F6), size: 28),
         const SizedBox(height: 8),
         Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
       ]),
-    ),
+    )),
   );
 }
 
@@ -640,42 +713,41 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(title: const Text('Về ứng dụng', style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.white, foregroundColor: const Color(0xFF1A1A2E), elevation: 0),
+      appBar: AppBar(title: Text(context.l10n.aboutTitle, style: const TextStyle(fontWeight: FontWeight.bold)), elevation: 0),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(children: [
           const SizedBox(height: 20),
           Container(padding: const EdgeInsets.all(20), decoration: const BoxDecoration(color: Color(0xFF3B82F6), shape: BoxShape.circle), child: const Icon(Icons.account_balance_wallet, color: Colors.white, size: 40)),
           const SizedBox(height: 16),
-          const Text('Wallet AI', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          const Text('Phiên bản 1.0.0', style: TextStyle(color: Colors.grey)),
+          Builder(builder: (ctx) => Text(ctx.l10n.appTitle, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
+          Builder(builder: (ctx) => Text('${ctx.l10n.appVersion}: 1.0.0', style: const TextStyle(color: Colors.grey))),
           const SizedBox(height: 4),
-          const Text('Quản lý tài chính cá nhân thông minh', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          Builder(builder: (ctx) => Text(ctx.l10n.appTagline, style: const TextStyle(color: Colors.grey, fontSize: 13))),
           const SizedBox(height: 30),
-          Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          Builder(builder: (ctx) => Container(
+            decoration: BoxDecoration(color: Theme.of(ctx).cardColor, borderRadius: BorderRadius.circular(16)),
             child: Column(children: [
-              _item(Icons.description_outlined, 'Điều khoản sử dụng'),
+              Builder(builder: (ctx) => _item(Icons.description_outlined, ctx.l10n.termsOfService)),
               const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Divider(height: 1)),
-              _item(Icons.privacy_tip_outlined, 'Chính sách bảo mật'),
+              Builder(builder: (ctx) => _item(Icons.privacy_tip_outlined, ctx.l10n.privacyPolicy)),
               const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Divider(height: 1)),
-              _item(Icons.star_outline, 'Đánh giá ứng dụng'),
+              Builder(builder: (ctx) => _item(Icons.star_outline, ctx.l10n.rateApp)),
               const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Divider(height: 1)),
-              _item(Icons.share_outlined, 'Chia sẻ ứng dụng'),
+              Builder(builder: (ctx) => _item(Icons.share_outlined, ctx.l10n.shareApp)),
             ]),
-          ),
+          )),
           const SizedBox(height: 24),
-          const Text('© 2026 Wallet AI. All rights reserved.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+          const Text('2026 Wallet AI. All rights reserved.', style: TextStyle(fontSize: 12, color: Colors.grey)),
         ]),
       ),
     );
   }
 
-  static Widget _item(IconData icon, String title) => ListTile(
-    leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: const Color(0xFF3B82F6), size: 20)),
+  static Widget _item(IconData icon, String title) => Builder(builder: (ctx) => ListTile(
+    leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Theme.of(ctx).brightness == Brightness.dark ? const Color(0xFF1A3558) : const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: const Color(0xFF3B82F6), size: 20)),
     title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
     trailing: const Icon(Icons.chevron_right, color: Colors.grey),
     onTap: () {},
-  );
+  ));
 }

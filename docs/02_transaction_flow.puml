@@ -1,0 +1,74 @@
+@startuml 02 - Them giao dich
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam ActivityBackgroundColor #E3F2FD
+skinparam ActivityBorderColor #1565C0
+skinparam ActivityDiamondBackgroundColor #FFF3E0
+skinparam ActivityDiamondBorderColor #E65100
+skinparam ArrowColor #1565C0
+skinparam NoteBackgroundColor #F3E5F5
+skinparam NoteBorderColor #6A1B9A
+skinparam swimlaneBorderColor #1565C0
+skinparam swimlaneBackgroundColor #E8F5E9
+
+title Sơ đồ hoạt động: Thêm / Sửa / Xoá Giao dịch
+
+|User|
+start
+:Bấm FAB (+) trên MainScreen;
+
+|AddTransactionScreen|
+:Load danh mục + danh sách ví;
+:Hiển thị form nhập liệu;
+
+|User|
+:Nhập ghi chú (note);
+
+|AiService|
+:suggestCategory(note) → gọi Gemini;
+note right: Fail silently nếu lỗi
+:Trả về categoryId gợi ý;
+
+|AddTransactionScreen|
+:Tự điền danh mục phù hợp;
+
+|User|
+:Chọn Thu/Chi + Số tiền + Ví + Ngày;
+:Bấm Lưu;
+
+|TransactionProvider|
+:INSERT INTO transactions (Supabase);
+:getWalletById() → lấy số dư hiện tại;
+if (Loại giao dịch?) then (Thu nhập)
+  :newBalance = balance + amount;
+else (Chi tiêu)
+  :newBalance = balance - amount;
+endif
+:UPDATE wallets SET balance = newBalance;
+:loadTransactions() → notifyListeners();
+:_checkAndNotifyAfterTransaction();
+note right
+  Kiểm tra 5 ngưỡng:
+  Số dư âm / Số dư < 50k /
+  Chi ≥ 500k / Chi/ngày ≥ 1tr /
+  Thu ≥ 1tr → gửi thông báo
+end note
+
+|User|
+if (Muốn sửa?) then (Có)
+  :Chọn giao dịch → Sửa;
+  |TransactionProvider|
+  :Hoàn tác số dư cũ → UPDATE transaction → Áp số dư mới;
+  :loadTransactions() → notifyListeners();
+endif
+if (Muốn xoá?) then (Có)
+  :Chọn giao dịch → Xoá;
+  |TransactionProvider|
+  :DELETE transaction → Hoàn tác số dư ví;
+  :notifyListeners();
+endif
+
+:Xem danh sách giao dịch đã cập nhật;
+stop
+
+@enduml

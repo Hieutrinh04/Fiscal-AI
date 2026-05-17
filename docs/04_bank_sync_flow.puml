@@ -1,0 +1,73 @@
+@startuml 04 - Lien ket ngan hang SePay
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam ActivityBackgroundColor #E3F2FD
+skinparam ActivityBorderColor #1565C0
+skinparam ActivityDiamondBackgroundColor #FFF3E0
+skinparam ActivityDiamondBorderColor #E65100
+skinparam ArrowColor #1565C0
+skinparam NoteBackgroundColor #F3E5F5
+skinparam NoteBorderColor #6A1B9A
+skinparam swimlaneBorderColor #1565C0
+skinparam swimlaneBackgroundColor #E8F5E9
+
+title Sơ đồ hoạt động: Liên kết Ngân hàng & Đồng bộ SePay
+
+|User|
+start
+:Mở LinkBankScreen → Nhập SePay API Key;
+
+|BankService|
+if (Nền tảng?) then (Web)
+  :Gọi SePay qua Supabase Edge Function\n(sepay-proxy) để tránh CORS;
+else (Mobile / Desktop)
+  :Gọi thẳng SePay REST API;
+endif
+:GET /bankaccounts/list;
+if (HTTP 200?) then (Có)
+  :Trả về danh sách tài khoản ngân hàng;
+else (401 Lỗi)
+  :Throw: API key không hợp lệ;
+  stop
+endif
+
+|User|
+:Chọn tài khoản → Xác minh;
+
+|BankService|
+:So khớp account_number trong danh sách SePay;
+if (Tìm thấy?) then (Có)
+  :Lấy account_holder_name;
+  :INSERT INTO bank_accounts (Supabase);
+else (Không)
+  :Throw: Tài khoản không tìm thấy;
+  stop
+endif
+
+|User|
+:Liên kết thành công;
+:Bấm "Đồng bộ giao dịch";
+
+|BankService|
+:GET /transactions/list?account_number=xxx&limit=100;
+repeat
+  if (Giao dịch đã tồn tại trong DB?) then (Có)
+    :Bỏ qua (skip duplicate);
+  else (Chưa có)
+    :INSERT INTO transactions;
+    :Tích lũy balanceDelta;
+  endif
+repeat while (Còn giao dịch?) is (Còn)
+:UPDATE wallets SET balance += balanceDelta;
+
+|User|
+:Xem thông báo kết quả đồng bộ;
+note right
+  AUTO SYNC qua Webhook:
+  SePay → Edge Function →
+  INSERT transactions →
+  Realtime → UI tự cập nhật
+end note
+stop
+
+@enduml

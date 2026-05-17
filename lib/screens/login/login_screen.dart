@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../utils/snackbar.dart';
+import '../../l10n/app_localizations.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/feature_card.dart';
 
@@ -38,7 +39,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xffF3F4F6),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -53,9 +53,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
-                    "Trợ Lý Tài Chính AI Cá Nhân",
+                    context.l10n.appTitle,
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -64,18 +64,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   SizedBox(height: 10),
                   Text(
-                    "Theo dõi chi tiêu, AI phân loại tự động",
-                    style: TextStyle(color: Colors.white70),
+                    context.l10n.appTagline,
+                    style: const TextStyle(color: Colors.white70),
                   ),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   Row(
                     children: [
                       Expanded(
-                        child: StatCard(title: "Tiết kiệm TB", value: "₫3.2M"),
+                        child: StatCard(title: context.l10n.monthlyContribution, value: '₫3.2M'),
                       ),
                       SizedBox(width: 10),
                       Expanded(
-                        child: StatCard(title: "Người dùng", value: "10K+"),
+                        child: StatCard(title: context.l10n.members, value: '10K+'),
                       ),
                       SizedBox(width: 10),
                       Expanded(
@@ -128,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
               margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: const [
                   BoxShadow(
@@ -140,11 +140,11 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               child: Column(
                 children: [
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      "Đăng nhập",
-                      style: TextStyle(
+                      context.l10n.login,
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
@@ -153,11 +153,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const SizedBox(height: 6),
 
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      "Chào mừng trở lại!",
-                      style: TextStyle(color: Colors.grey),
+                      context.l10n.hello,
+                      style: const TextStyle(color: Colors.grey),
                     ),
                   ),
 
@@ -167,8 +167,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextField(
                     controller: _emailController,
                     decoration: InputDecoration(
-                      hintText: "Email",
-                      helperText: "Nhập email đã đăng ký", // ✅ THÊM
+                      hintText: context.l10n.email,
+                      helperText: context.l10n.enterEmail, // ✅ THÊM
                       prefixIcon: const Icon(Iconsax.sms),
                       filled: true,
                       fillColor: const Color(0xffF9FAFB),
@@ -186,8 +186,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _passwordController,
                     obscureText: obscurePassword,
                     decoration: InputDecoration(
-                      hintText: "Mật khẩu",
-                      helperText: "Tối thiểu 6 ký tự", // ✅ THÊM
+                      hintText: context.l10n.password,
+                      helperText: context.l10n.enterPassword, // ✅ THÊM
                       prefixIcon: const Icon(Iconsax.lock),
                       suffixIcon: GestureDetector(
                         onTap: () {
@@ -269,9 +269,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ? const CircularProgressIndicator(
                               color: Colors.white,
                             )
-                          : const Text(
-                              "Đăng nhập",
-                              style: TextStyle(fontSize: 16),
+                          : Text(
+                              context.l10n.loginBtn,
+                              style: const TextStyle(fontSize: 16),
                             ),
                     ),
                   ),
@@ -285,8 +285,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       onTap: () {
                         Navigator.pushNamed(context, '/forgot-password');
                       },
-                      child: const Text(
-                        "Quên mật khẩu?",
+                      child: Text(
+                        context.l10n.forgotPassword,
                         style: TextStyle(
                           color: Color(0xff2F80ED),
                           fontWeight: FontWeight.w500,
@@ -296,16 +296,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
 
                   /// DIVIDER
                   Row(
-                    children: const [
+                    children: [
                       Expanded(child: Divider()),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 12),
                         child: Text(
-                          'hoặc',
+                          context.l10n.locale.languageCode == 'vi' ? 'hoặc' : 'or',
                           style: TextStyle(color: Colors.grey, fontSize: 13),
                         ),
                       ),
@@ -313,7 +313,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20),
 
                   /// GOOGLE SIGN IN
                   SizedBox(
@@ -325,29 +325,45 @@ class _LoginScreenState extends State<LoginScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                         ),
-                        backgroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).cardColor,
                       ),
                       onPressed: auth.isLoading
                           ? null
                           : () async {
                               await auth.signInWithGoogle();
-                              // Navigation handled by onAuthStateChange listener
-                              if (auth.error != null &&
-                                  context.mounted) {
-                                AppSnackBar.warning(
-                                    context, auth.error!);
+                              if (!context.mounted) return;
+                              if (auth.error != null) {
+                                AppSnackBar.error(context, auth.error!);
                               }
+                              // Nếu launch thành công, listener
+                              // onAuthStateChange sẽ tự đưa user vào /home
                             },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.mail_outline,
-                              color: Color(0xffEA4335), size: 20),
+                          Container(
+                            width: 22,
+                            height: 22,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: const Color(0xffE5E7EB)),
+                            ),
+                            child: const Text(
+                              'G',
+                              style: TextStyle(
+                                color: Color(0xff4285F4),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
                           const SizedBox(width: 10),
                           Text(
                             auth.isLoading
-                                ? 'Đang đăng nhập...'
-                                : 'Tiếp tục với Google',
+                                ? context.l10n.loading
+                                : context.l10n.loginWithGoogle,
                             style: const TextStyle(
                               fontSize: 15,
                               color: Colors.black87,
@@ -366,8 +382,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     onTap: () {
                       Navigator.pushNamed(context, '/register');
                     },
-                    child: const Text(
-                      "Chưa có tài khoản? Đăng ký",
+                    child: Text(
+                      context.l10n.dontHaveAccount,
                       style: TextStyle(
                         color: Color(0xff2F80ED),
                         fontWeight: FontWeight.w500,

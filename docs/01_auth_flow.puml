@@ -1,0 +1,67 @@
+@startuml 01 - Dang nhap
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam ActivityBackgroundColor #E3F2FD
+skinparam ActivityBorderColor #1565C0
+skinparam ActivityDiamondBackgroundColor #FFF3E0
+skinparam ActivityDiamondBorderColor #E65100
+skinparam ArrowColor #1565C0
+skinparam NoteBackgroundColor #F3E5F5
+skinparam NoteBorderColor #6A1B9A
+skinparam swimlaneBorderColor #1565C0
+skinparam swimlaneBackgroundColor #E8F5E9
+
+title Sơ đồ hoạt động: Đăng nhập (Email & Google)
+
+|User|
+start
+:Mở ứng dụng;
+
+|App (main.dart)|
+if (Có session Supabase?) then (Có)
+  :Hiển thị MainScreen;
+  stop
+else (Không)
+  :Hiển thị LoginScreen;
+endif
+
+|User|
+if (Cách đăng nhập?) then (Email)
+  :Nhập email + password;
+  |AuthProvider|
+  :signIn(email, password);
+  |Supabase Auth|
+  if (Hợp lệ?) then (Có)
+    :Trả về User + Session;
+    |AuthProvider|
+    :Load Profile từ DB;
+  else (Không)
+    :Trả về lỗi;
+    |AuthProvider|
+    :Hiện thông báo lỗi;
+    stop
+  endif
+else (Google)
+  :Bấm "Đăng nhập Google";
+  |AuthProvider|
+  :signInWithOAuth(Google,\n  redirectTo: deep link,\n  prompt: select_account);
+  |Chrome Custom Tab|
+  :Mở trang chọn tài khoản Google;
+  |User|
+  :Chọn tài khoản;
+  |Supabase Auth|
+  :Redirect về com.example.wallet://login-callback?code=xxx;
+  :Exchange code → Session;
+  :fire AuthChangeEvent.signedIn;
+  |AuthProvider|
+  :ensureProfile() ← tạo profile nếu lần đầu;
+endif
+
+|AuthProvider|
+:notifyListeners();
+
+|App (main.dart)|
+:pushAndRemoveUntil → MainScreen;
+stop
+
+@enduml

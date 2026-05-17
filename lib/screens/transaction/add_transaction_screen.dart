@@ -14,6 +14,7 @@ import '../../services/ai_service.dart';
 import '../../utils/category_keywords.dart';
 import '../../utils/formatters.dart';
 import '../../utils/snackbar.dart';
+import '../../l10n/app_localizations.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   final Transaction? transaction;
@@ -244,12 +245,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xffF3F4F6),
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
-        leading: const BackButton(color: Colors.black),
-        title: Text(_isEditing ? "Chỉnh sửa giao dịch" : "Thêm giao dịch", style: const TextStyle(color: Colors.black)),
+        title: Text(_isEditing ? context.l10n.editTransactionTitle : context.l10n.addTransactionTitle),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -283,9 +281,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         ),
                         child: Center(
                           child: Text(
-                            "Chi tiêu",
+                            context.l10n.expense,
                             style: TextStyle(
-                              color: isExpense ? Colors.white : Colors.black,
+                              color: isExpense ? Colors.white : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                             ),
                           ),
                         ),
@@ -311,9 +309,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         ),
                         child: Center(
                           child: Text(
-                            "Thu nhập",
+                            context.l10n.income,
                             style: TextStyle(
-                              color: !isExpense ? Colors.white : Colors.black,
+                              color: !isExpense ? Colors.white : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                             ),
                           ),
                         ),
@@ -324,15 +322,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             /// ================= WALLET SELECT =================
-            const Text("Chọn ví"),
+            Text(context.l10n.selectWallet),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: DropdownButtonHideUnderline(
@@ -353,7 +351,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const SizedBox(height: 16),
 
             /// ================= AMOUNT =================
-            const Text("Số tiền (₫)"),
+            Text(context.l10n.amount),
             const SizedBox(height: 8),
             buildInput(amountController, "0", Iconsax.money, isNumber: true),
             if (_formattedAmount.isNotEmpty)
@@ -372,9 +370,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const SizedBox(height: 16),
 
             /// ================= DESCRIPTION =================
-            const Text("Mô tả (AI tự phân loại)"),
+            Text(context.l10n.note),
             const SizedBox(height: 8),
-            buildInput(descController, "VD: ăn phở", Iconsax.note),
+            buildInput(descController, context.l10n.enterNote, Iconsax.note),
 
             const SizedBox(height: 6),
 
@@ -418,18 +416,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const SizedBox(height: 16),
 
             /// ================= DATE =================
-            const Text("Ngày"),
+            Text(context.l10n.date),
             const SizedBox(height: 8),
             buildDate(),
 
             const SizedBox(height: 16),
 
             /// ================= CATEGORY =================
-            const Text("Danh mục"),
+            Text(context.l10n.category),
             const SizedBox(height: 10),
 
             if (currentCategories.isEmpty)
-              const Text("Đang tải danh mục...", style: TextStyle(color: Colors.grey))
+              Text(context.l10n.loading, style: const TextStyle(color: Colors.grey))
             else
               Wrap(
                 spacing: 12,
@@ -450,7 +448,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.white,
+                            color: isSelected ? Colors.blue.withOpacity(0.1) : Theme.of(context).cardColor,
                             shape: BoxShape.circle,
                             border: isSelected ? Border.all(color: Colors.blue, width: 2) : null,
                           ),
@@ -547,8 +545,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                 },
                 child: Text(
                   _isEditing
-                      ? (isExpense ? "Cập nhật chi tiêu" : "Cập nhật thu nhập")
-                      : (isExpense ? "Thêm chi tiêu" : "Thêm thu nhập"),
+                      ? (isExpense ? context.l10n.updateExpense : context.l10n.updateIncome)
+                      : (isExpense ? context.l10n.addExpense : context.l10n.addIncomeBtn),
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -570,7 +568,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
         hintText: hint,
         prefixIcon: Icon(icon),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Theme.of(context).cardColor,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
@@ -596,7 +594,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(

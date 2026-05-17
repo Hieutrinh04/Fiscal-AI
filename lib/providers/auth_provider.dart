@@ -95,23 +95,27 @@ class AuthProvider extends ChangeNotifier {
 
   /// ================= GOOGLE SIGN IN (Supabase OAuth) =================
   ///
-  /// Chỉ gọi OAuth – session được xử lý qua onAuthStateChange listener.
-  /// Không đọc currentUser ở đây vì OAuth mở tab mới trên Web.
+  /// Mở URL OAuth – session được xử lý qua onAuthStateChange listener.
+  /// _isLoading được reset NGAY sau khi launch xong, để user không bị kẹt
+  /// nút disabled nếu họ huỷ hoặc quay lại app mà chưa đăng nhập.
   Future<void> signInWithGoogle() async {
     _error = null;
     _setLoading(true);
 
     try {
       debugPrint('[AUTH] Gọi signInWithGoogle...');
-      await _authService.signInWithGoogle();
-      debugPrint('[AUTH] signInWithGoogle hoàn tất – chờ listener xử lý session');
-      // Session sẽ được cập nhật qua handleAuthStateChange()
+      final launched = await _authService.signInWithGoogle();
+      debugPrint('[AUTH] signInWithGoogle launched=$launched');
+      if (!launched) {
+        _error = 'Không thể mở trình duyệt để đăng nhập Google';
+      }
     } catch (e) {
       debugPrint('[AUTH] signInWithGoogle LỖI: $e');
       _error = e.toString();
+    } finally {
+      /// 🔥 Reset loading ngay khi browser đã mở (hoặc lỗi) — không chờ listener
       _setLoading(false);
     }
-    // Không _setLoading(false) ở đây – listener sẽ xử lý khi signedIn
   }
 
   /// ================= HANDLE AUTH STATE CHANGE =================

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../utils/snackbar.dart';
+import '../../l10n/app_localizations.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
@@ -31,12 +32,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
-      backgroundColor: const Color(0xffF3F4F6),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Iconsax.arrow_left, color: Colors.black87),
+          icon: const Icon(Iconsax.arrow_left),
           onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
         ),
       ),
@@ -67,9 +67,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               const SizedBox(height: 30),
 
               /// TITLE
-              const Text(
-                'Đặt mật khẩu mới',
-                style: TextStyle(
+              Text(
+                context.l10n.setNewPassword,
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
@@ -77,8 +77,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
               const SizedBox(height: 8),
 
-              const Text(
-                'Nhập mật khẩu mới cho tài khoản của bạn.',
+              Text(
+                context.l10n.resetPassword,
                 style: TextStyle(
                   color: Colors.grey,
                   fontSize: 14,
@@ -92,7 +92,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: const [
                     BoxShadow(
@@ -110,8 +110,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       obscureText: obscurePassword,
                       enabled: !_success,
                       decoration: InputDecoration(
-                        hintText: 'Mật khẩu mới',
-                        helperText: 'Tối thiểu 6 ký tự',
+                        hintText: context.l10n.newPassword,
+                        helperText: context.l10n.enterPassword,
                         prefixIcon: const Icon(Iconsax.lock),
                         suffixIcon: GestureDetector(
                           onTap: () =>
@@ -139,7 +139,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       obscureText: obscureConfirm,
                       enabled: !_success,
                       decoration: InputDecoration(
-                        hintText: 'Xác nhận mật khẩu',
+                        hintText: context.l10n.confirmNewPassword,
                         prefixIcon: const Icon(Iconsax.lock_1),
                         suffixIcon: GestureDetector(
                           onTap: () => setState(
@@ -258,9 +258,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           child: auth.isLoading
                               ? const CircularProgressIndicator(
                                   color: Colors.white)
-                              : const Text(
-                                  'Đặt mật khẩu mới',
-                                  style: TextStyle(fontSize: 15),
+                              : Text(
+                                  context.l10n.setNewPassword,
+                                  style: const TextStyle(fontSize: 15),
                                 ),
                         ),
                       ),
@@ -276,9 +276,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 child: GestureDetector(
                   onTap: () =>
                       Navigator.pushReplacementNamed(context, '/login'),
-                  child: const Text(
-                    'Quay lại đăng nhập',
-                    style: TextStyle(
+                  child: Text(
+                    context.l10n.alreadyHaveAccount,
+                    style: const TextStyle(
                       color: Color(0xff2F80ED),
                       fontWeight: FontWeight.w500,
                     ),

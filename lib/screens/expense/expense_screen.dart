@@ -10,6 +10,7 @@ import '../../models/transaction.dart';
 import '../../models/category.dart' as model;
 import '../../utils/formatters.dart';
 import '../../utils/snackbar.dart';
+import '../../l10n/app_localizations.dart';
 
 class ExpenseScreen extends StatefulWidget {
   const ExpenseScreen({super.key});
@@ -74,9 +75,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
         _selectedTab == 0 ? Colors.red.shade50 : Colors.green.shade50;
 
     return Scaffold(
-      backgroundColor: const Color(0xffF3F4F6),
       appBar: AppBar(
-        title: const Text("Thống kê"),
+        title: Text(context.l10n.expenseTitle),
         centerTitle: true,
         elevation: 0,
       ),
@@ -92,7 +92,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -116,7 +116,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             'Chi tiêu',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: _selectedTab == 0 ? Colors.white : Colors.black54,
+                              color: _selectedTab == 0 ? Colors.white : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -142,7 +142,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                             'Thu nhập',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: _selectedTab == 1 ? Colors.white : Colors.black54,
+                              color: _selectedTab == 1 ? Colors.white : Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -159,7 +159,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Column(
@@ -212,7 +212,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Column(
@@ -272,7 +272,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                 children: [
                   Expanded(
                     child: summaryCard(
-                        "Chi tiêu",
+                        context.l10n.expense,
                         Formatters.currency(transProvider.totalExpense.toDouble()),
                         Colors.red.shade100,
                         Colors.red),
@@ -280,7 +280,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: summaryCard(
-                        "Thu nhập",
+                        context.l10n.income,
                         Formatters.currency(transProvider.totalIncome.toDouble()),
                         Colors.green.shade100,
                         Colors.green),
@@ -294,7 +294,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Column(
@@ -323,7 +323,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Center(
@@ -359,7 +359,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -392,7 +392,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                           child: LinearProgressIndicator(
                             value: pct / 100,
                             minHeight: 6,
-                            backgroundColor: Colors.grey[200],
+                            backgroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.grey[700] : Colors.grey[200],
                             valueColor: AlwaysStoppedAnimation(accentColor),
                           ),
                         ),
@@ -422,7 +422,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          "Tất cả",
+                          context.l10n.all,
                           style: TextStyle(
                             color: selectedCategoryId == null
                                 ? Colors.white
@@ -466,17 +466,17 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               const SizedBox(height: 16),
 
               /// LIST
-              Text("Giao dịch (${filteredList.length})",
+              Text("${context.l10n.recentTransactions} (${filteredList.length})",
                   style: const TextStyle(fontWeight: FontWeight.bold)),
 
               const SizedBox(height: 10),
 
               if (filteredList.isEmpty)
-                const Center(
+                Center(
                   child: Padding(
-                    padding: EdgeInsets.all(40),
-                    child: Text("Chưa có giao dịch nào",
-                        style: TextStyle(color: Colors.grey)),
+                    padding: const EdgeInsets.all(40),
+                    child: Text(context.l10n.noTransactions,
+                        style: const TextStyle(color: Colors.grey)),
                   ),
                 )
               else
@@ -492,7 +492,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
@@ -725,11 +725,11 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text("Tùy chọn", style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(context.l10n.edit, style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               ListTile(
                 leading: const Icon(Iconsax.edit),
-                title: const Text("Chỉnh sửa"),
+                title: Text(context.l10n.editTransaction),
                 onTap: () {
                   Navigator.pop(context);
                   _showEditSheet(context, t);
@@ -737,7 +737,7 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               ),
               ListTile(
                 leading: const Icon(Iconsax.trash, color: Colors.red),
-                title: const Text("Xóa"),
+                title: Text(context.l10n.deleteTransaction),
                 onTap: () async {
                   Navigator.pop(context);
                   await _deleteTransaction(context, t);
@@ -809,9 +809,9 @@ class _ExpenseScreenState extends State<ExpenseScreen> {
               top: 20,
               bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
             ),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1022,7 +1022,7 @@ class QuickItem extends StatelessWidget {
       child: Column(
         children: [
           CircleAvatar(
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).cardColor,
             child: Text(icon, style: const TextStyle(fontSize: 18)),
           ),
           const SizedBox(height: 5),

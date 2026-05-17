@@ -122,6 +122,69 @@ class TransactionProvider extends ChangeNotifier {
     return map;
   }
 
+  /// ================= RANGE STATS =================
+
+  /// Giao dịch trong khoảng ngày (inclusive)
+  List<Transaction> transactionsInRange(
+      DateTime start, DateTime end, TransactionType type) {
+    final endInclusive = DateTime(end.year, end.month, end.day, 23, 59, 59);
+    return _transactions
+        .where((t) =>
+            t.type == type &&
+            !t.date.isBefore(DateTime(start.year, start.month, start.day)) &&
+            !t.date.isAfter(endInclusive))
+        .toList();
+  }
+
+  /// Tổng amount trong khoảng ngày
+  int totalInRange(DateTime start, DateTime end, TransactionType type) =>
+      transactionsInRange(start, end, type).fold(0, (s, t) => s + t.amount);
+
+  /// Category totals trong khoảng ngày
+  Map<String, int> categoryTotalsInRange(
+      TransactionType type, DateTime start, DateTime end) {
+    final map = <String, int>{};
+    for (final t in transactionsInRange(start, end, type)) {
+      final catId = t.categoryId ?? 'other';
+      map[catId] = (map[catId] ?? 0) + t.amount;
+    }
+    return map;
+  }
+
+  /// Daily totals trong khoảng ngày (tất cả ngày có trong map kể cả 0)
+  Map<String, int> dailyTotalsInRange(
+      TransactionType type, DateTime start, DateTime end) {
+    final map = <String, int>{};
+    for (var d = start;
+        !d.isAfter(end);
+        d = d.add(const Duration(days: 1))) {
+      final key =
+          '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      map[key] = 0;
+    }
+    for (final t in transactionsInRange(start, end, type)) {
+      final key =
+          '${t.date.year}-${t.date.month.toString().padLeft(2, '0')}-${t.date.day.toString().padLeft(2, '0')}';
+      if (map.containsKey(key)) map[key] = map[key]! + t.amount;
+    }
+    return map;
+  }
+
+  /// Monthly totals cho cả năm
+  Map<String, int> monthlyTotalsForYear(TransactionType type, int year) {
+    final map = <String, int>{};
+    for (int m = 1; m <= 12; m++) {
+      map['$year-${m.toString().padLeft(2, '0')}'] = 0;
+    }
+    for (final t in _transactions
+        .where((t) => t.type == type && t.date.year == year)) {
+      final key =
+          '${t.date.year}-${t.date.month.toString().padLeft(2, '0')}';
+      if (map.containsKey(key)) map[key] = map[key]! + t.amount;
+    }
+    return map;
+  }
+
   /// Giao dịch trong 1 ngày cụ thể theo loại
   List<Transaction> transactionsForDay(DateTime date, TransactionType type) {
     return _transactions.where((t) {

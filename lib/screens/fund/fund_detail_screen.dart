@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/shared_fund_provider.dart';
 import '../../providers/friend_provider.dart';
 import '../../providers/wallet_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../models/wallet.dart';
 import '../../utils/formatters.dart';
 import '../../utils/snackbar.dart';
@@ -96,8 +97,10 @@ class _FundDetailScreenState extends State<FundDetailScreen> {
                   children: [
                     Text(
                       Formatters.currency(fund.currentAmount),
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: fund.currentAmount > fund.targetAmount
+                            ? const Color(0xffFBBF24)
+                            : Colors.white,
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
                       ),
@@ -111,17 +114,47 @@ class _FundDetailScreenState extends State<FundDetailScreen> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: LinearProgressIndicator(
-                        value: fund.progress,
+                        value: fund.currentAmount > fund.targetAmount ? 1.0 : fund.progress,
                         backgroundColor: Colors.white24,
-                        valueColor: const AlwaysStoppedAnimation(Colors.white),
+                        valueColor: AlwaysStoppedAnimation(
+                          fund.currentAmount > fund.targetAmount
+                              ? const Color(0xffFBBF24)
+                              : Colors.white,
+                        ),
                         minHeight: 10,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      '${(fund.progress * 100).toStringAsFixed(1)}%',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
+                    if (fund.currentAmount > fund.targetAmount) ...[  
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xffFBBF24).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xffFBBF24), width: 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.emoji_events, color: Color(0xffFBBF24), size: 16),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Vượt mục tiêu: +${Formatters.currency(fund.currentAmount - fund.targetAmount)}',
+                              style: const TextStyle(
+                                color: Color(0xffFBBF24),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[  
+                      Text(
+                        '${(fund.progress * 100).toStringAsFixed(1)}%',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -413,6 +446,7 @@ class _FundDetailScreenState extends State<FundDetailScreen> {
                   if (mounted) {
                     if (ok) {
                       await context.read<WalletProvider>().loadWallets();
+                      await context.read<TransactionProvider>().loadTransactions();
                       if (mounted) AppSnackBar.success(context, 'Góp quỹ thành công!');
                     } else {
                       AppSnackBar.error(context,

@@ -106,12 +106,34 @@ class AiProvider extends ChangeNotifier {
     try {
       final data = await _aiService.getChatHistory(userId);
 
-      _chatMessages =
-          data.map((e) => AiChatMessage.fromJson(e)).toList();
-
+      // Mỗi DB row chứa cả user_message + ai_reply → tạo 2 messages
+      final List<AiChatMessage> messages = [];
+      for (final row in data) {
+        final createdAt = DateTime.tryParse(row['created_at'] ?? '') ?? DateTime.now();
+        if (row['user_message'] != null) {
+          messages.add(AiChatMessage(
+            id: '${row['id']}_user',
+            userId: userId,
+            sessionId: userId,
+            role: 'user',
+            content: row['user_message'] as String,
+            createdAt: createdAt,
+          ));
+        }
+        if (row['ai_reply'] != null) {
+          messages.add(AiChatMessage(
+            id: '${row['id']}_ai',
+            userId: userId,
+            sessionId: userId,
+            role: 'assistant',
+            content: row['ai_reply'] as String,
+            createdAt: createdAt,
+          ));
+        }
+      }
+      _chatMessages = messages;
       _error = null;
     } catch (e) {
-      // Không fatal - vẫn cho phép chat ngay cả khi không load được history
       _chatMessages = [];
       _error = null;
     }
@@ -185,6 +207,19 @@ class AiProvider extends ChangeNotifier {
     _chatMessages = [];
     _aiService.clearChatHistory();
     notifyListeners();
+  }
+
+  /// 🔥 DELETE ALL CHAT HISTORY
+  Future<void> deleteAllChatHistory() async {
+    if (_currentSessionId == null) return;
+    try {
+      await _aiService.deleteAllChatHistory(_currentSessionId!);
+      _chatMessages = [];
+      _aiService.clearChatHistory();
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+    }
   }
 
   void clearError() {
