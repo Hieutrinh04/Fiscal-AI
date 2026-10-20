@@ -7,7 +7,6 @@
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter)](https://flutter.dev)
 [![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?logo=supabase)](https://supabase.com)
 [![Gemini AI](https://img.shields.io/badge/Gemini-1.5_Flash-4285F4?logo=google)](https://ai.google.dev)
-[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 </div>
 
@@ -128,6 +127,26 @@ Script khởi tạo database: [`supabase_migration.sql`](supabase_migration.sql)
 
 ---
 
+## 📐 Tài liệu phân tích & thiết kế
+
+Thư mục [`docs/`](docs) chứa các sơ đồ PlantUML mô tả nghiệp vụ và kiến trúc:
+
+| Sơ đồ | Nội dung |
+|---|---|
+| [`project_architecture.puml`](docs/project_architecture.puml) | Kiến trúc tổng thể: Flutter app, Supabase, Gemini, SePay |
+| [`project_model.puml`](docs/project_model.puml) | Mô hình giải quyết bài toán |
+| [`project_activity_flow.puml`](docs/project_activity_flow.puml) | Luồng hoạt động tổng thể |
+| [`01_auth_flow.puml`](docs/01_auth_flow.puml) | Đăng nhập |
+| [`02_transaction_flow.puml`](docs/02_transaction_flow.puml) | Thêm giao dịch |
+| [`03_ai_chat_flow.puml`](docs/03_ai_chat_flow.puml) · [`ai_flow_diagram.puml`](docs/ai_flow_diagram.puml) | AI Chat và AI Insights |
+| [`04_bank_sync_flow.puml`](docs/04_bank_sync_flow.puml) | Liên kết ngân hàng qua SePay |
+| [`05_wallet_flow.puml`](docs/05_wallet_flow.puml) | Quản lý ví và chuyển tiền |
+| [`06_goal_flow.puml`](docs/06_goal_flow.puml) | Mục tiêu tiết kiệm |
+
+> Xem sơ đồ: mở file `.puml`, dán nội dung vào [plantuml.com](https://www.plantuml.com/plantuml) hoặc dùng extension PlantUML trên VS Code.
+
+---
+
 ## 🚀 Cài đặt và chạy dự án
 
 ### Yêu cầu
@@ -140,8 +159,8 @@ Script khởi tạo database: [`supabase_migration.sql`](supabase_migration.sql)
 ### 1. Clone repository
 
 ```bash
-git clone https://github.com/<your-username>/fiscal-ai-wallet.git
-cd fiscal-ai-wallet
+git clone https://github.com/Hieutrinh04/Fiscal-AI.git
+cd Fiscal-AI
 ```
 
 ### 2. Cài đặt dependencies
@@ -230,7 +249,6 @@ flutter run -d chrome
 
 ## 🔒 Bảo mật
 
-- Toàn bộ API keys được lưu trong **Supabase Secrets**, không hardcode trong mã nguồn
 - **Row Level Security (RLS)** được bật cho tất cả bảng
 - `Service Role Key` chỉ được dùng trong Edge Functions, không bao giờ expose phía client
 - File `.env` và keys đều được thêm vào `.gitignore`
@@ -247,9 +265,9 @@ flutter run -d chrome
 
 ---
 
-## 📄 License
+## 👤 Tác giả
 
-Dự án này được phân phối theo giấy phép [MIT](LICENSE).
+**Trịnh Minh Hiếu** · [GitHub](https://github.com/Hieutrinh04)
 
 ---
 
